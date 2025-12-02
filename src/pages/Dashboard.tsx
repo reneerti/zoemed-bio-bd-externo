@@ -149,6 +149,7 @@ const Dashboard = () => {
         {records.length > 0 && (() => {
           const latest = records[records.length - 1];
           const first = records[0];
+          const recentRecords = records.slice(-6); // Last 6 records for sparkline
           
           // Helper to get performance indicator with percentage
           const getPerformanceIndicator = (current: number, initial: number, lowerIsBetter: boolean) => {
@@ -156,66 +157,87 @@ const Dashboard = () => {
             const percent = Math.abs((diff / initial) * 100).toFixed(1);
             const threshold = Math.abs(initial * 0.01);
             
-            if (Math.abs(diff) <= threshold) return { icon: "→", percent: "0%", color: "text-amber-200" };
+            if (Math.abs(diff) <= threshold) return { icon: "→", percent: "0%", color: "text-amber-200", stroke: "#fbbf24" };
             if (lowerIsBetter) {
               return diff < 0 
-                ? { icon: "↓", percent: `-${percent}%`, color: "text-emerald-300" }
-                : { icon: "↑", percent: `+${percent}%`, color: "text-red-300" };
+                ? { icon: "↓", percent: `-${percent}%`, color: "text-emerald-300", stroke: "#6ee7b7" }
+                : { icon: "↑", percent: `+${percent}%`, color: "text-red-300", stroke: "#fca5a5" };
             }
             return diff > 0 
-              ? { icon: "↑", percent: `+${percent}%`, color: "text-emerald-300" }
-              : { icon: "↓", percent: `-${percent}%`, color: "text-red-300" };
+              ? { icon: "↑", percent: `+${percent}%`, color: "text-emerald-300", stroke: "#6ee7b7" }
+              : { icon: "↓", percent: `-${percent}%`, color: "text-red-300", stroke: "#fca5a5" };
           };
 
           const summaryItems = [
             { 
-              label: "Peso Atual", 
+              label: "Peso", 
               value: `${Number(latest.weight).toFixed(1)} kg`,
               bg: "bg-gradient-to-br from-blue-500 to-blue-700",
-              performance: getPerformanceIndicator(Number(latest.weight), Number(first.weight), true)
+              performance: getPerformanceIndicator(Number(latest.weight), Number(first.weight), true),
+              sparkData: recentRecords.map(r => ({ v: Number(r.weight) }))
             },
             { 
               label: "IMC", 
               value: Number(latest.bmi).toFixed(1),
               bg: "bg-gradient-to-br from-indigo-500 to-indigo-700",
-              performance: getPerformanceIndicator(Number(latest.bmi), Number(first.bmi), true)
+              performance: getPerformanceIndicator(Number(latest.bmi), Number(first.bmi), true),
+              sparkData: recentRecords.map(r => ({ v: Number(r.bmi) }))
             },
             { 
               label: "Gordura", 
               value: `${Number(latest.body_fat_percent).toFixed(1)}%`,
               bg: "bg-gradient-to-br from-rose-500 to-rose-700",
-              performance: getPerformanceIndicator(Number(latest.body_fat_percent), Number(first.body_fat_percent), true)
+              performance: getPerformanceIndicator(Number(latest.body_fat_percent), Number(first.body_fat_percent), true),
+              sparkData: recentRecords.map(r => ({ v: Number(r.body_fat_percent) }))
             },
             { 
               label: "Músculo", 
               value: `${Number(latest.muscle_rate_percent).toFixed(1)}%`,
               bg: "bg-gradient-to-br from-emerald-500 to-emerald-700",
-              performance: getPerformanceIndicator(Number(latest.muscle_rate_percent), Number(first.muscle_rate_percent), false)
+              performance: getPerformanceIndicator(Number(latest.muscle_rate_percent), Number(first.muscle_rate_percent), false),
+              sparkData: recentRecords.map(r => ({ v: Number(r.muscle_rate_percent) }))
             },
             { 
               label: "G. Visceral", 
               value: Number(latest.visceral_fat).toFixed(0),
               bg: "bg-gradient-to-br from-amber-500 to-amber-700",
-              performance: getPerformanceIndicator(Number(latest.visceral_fat), Number(first.visceral_fat), true)
+              performance: getPerformanceIndicator(Number(latest.visceral_fat), Number(first.visceral_fat), true),
+              sparkData: recentRecords.map(r => ({ v: Number(r.visceral_fat) }))
             },
             { 
               label: "Idade Met.", 
-              value: `${latest.metabolic_age} anos`,
+              value: `${latest.metabolic_age}`,
               bg: "bg-gradient-to-br from-purple-500 to-purple-700",
-              performance: getPerformanceIndicator(Number(latest.metabolic_age), Number(first.metabolic_age), true)
+              performance: getPerformanceIndicator(Number(latest.metabolic_age), Number(first.metabolic_age), true),
+              sparkData: recentRecords.map(r => ({ v: Number(r.metabolic_age) }))
             },
           ];
 
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8 animate-slide-up">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 animate-slide-up">
               {summaryItems.map((item, i) => (
-                <Card key={i} className={`card-elevated border-0 ${item.bg} shadow-lg`}>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-xs uppercase tracking-wide mb-1 text-white/80">{item.label}</p>
-                    <p className="text-2xl font-serif font-bold text-white">{item.value}</p>
-                    <span className={`text-xs font-medium ${item.performance.color}`}>
+                <Card key={i} className={`card-elevated border-0 ${item.bg} shadow-lg overflow-hidden`}>
+                  <CardContent className="p-3 text-center relative">
+                    <p className="text-[10px] uppercase tracking-wide mb-0.5 text-white/70">{item.label}</p>
+                    <p className="text-xl font-serif font-bold text-white leading-tight">{item.value}</p>
+                    <span className={`text-[10px] font-medium ${item.performance.color}`}>
                       {item.performance.icon} {item.performance.percent}
                     </span>
+                    {item.sparkData.length > 1 && (
+                      <div className="h-8 mt-1 -mx-3 -mb-3">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={item.sparkData}>
+                            <Line 
+                              type="monotone" 
+                              dataKey="v" 
+                              stroke={item.performance.stroke}
+                              strokeWidth={1.5}
+                              dot={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
