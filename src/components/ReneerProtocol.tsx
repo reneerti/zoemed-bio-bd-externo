@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import SupplementationCard from "./SupplementationCard";
 
 const ReneerProtocol = () => {
   return (
@@ -121,6 +122,9 @@ const ReneerProtocol = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Suplementação */}
+      <SupplementationCard userPerson="reneer" />
 
       {/* Métricas Detalhadas */}
       <Card className="card-elevated border-0">

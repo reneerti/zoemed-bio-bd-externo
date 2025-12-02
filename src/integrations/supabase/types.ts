@@ -101,6 +101,36 @@ export type Database = {
         }
         Relationships: []
       }
+      supplementation: {
+        Row: {
+          created_at: string
+          dosage: string
+          id: string
+          notes: string | null
+          supplement_name: string
+          updated_at: string
+          user_person: string
+        }
+        Insert: {
+          created_at?: string
+          dosage: string
+          id?: string
+          notes?: string | null
+          supplement_name: string
+          updated_at?: string
+          user_person: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string
+          id?: string
+          notes?: string | null
+          supplement_name?: string
+          updated_at?: string
+          user_person?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import SupplementationCard from "./SupplementationCard";
 
 const AnaPaulaProtocol = () => {
   return (
@@ -216,26 +217,8 @@ const AnaPaulaProtocol = () => {
               </div>
             </div>
 
-            <div>
-              <p className="font-semibold mb-2">💊 Suplementação</p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex justify-between p-2 bg-secondary/30 rounded">
-                  <span>Whey Protein</span>
-                  <span className="font-medium text-foreground">50g/dia (2x 25g)</span>
-                </li>
-                <li className="flex justify-between p-2 bg-secondary/30 rounded">
-                  <span>Creatina</span>
-                  <span className="font-medium text-foreground">3-5g/dia</span>
-                </li>
-                <li className="flex justify-between p-2 bg-secondary/30 rounded">
-                  <span>Ômega-3</span>
-                  <span className="font-medium text-foreground">2000mg/dia</span>
-                </li>
-                <li className="flex justify-between p-2 bg-secondary/30 rounded">
-                  <span>BCAA</span>
-                  <span className="font-medium text-foreground">Durante treino</span>
-                </li>
-              </ul>
+            <div className="md:col-span-2">
+              <SupplementationCard userPerson="ana_paula" title="Suplementação" />
             </div>
           </div>
         </CardContent>
