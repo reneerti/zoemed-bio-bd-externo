@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Minus } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface BioimpedanceRecord {
   id: string;
@@ -35,21 +36,21 @@ interface Props {
 
 // Parâmetros de referência baseados no protocolo
 const getParams = (isReneer: boolean) => ({
-  weight: { ideal: isReneer ? 80 : 55, unit: "kg", lowerIsBetter: false },
-  bmi: { ideal: 24.9, unit: "", lowerIsBetter: true },
-  body_fat_percent: { ideal: isReneer ? 20 : 25, unit: "%", lowerIsBetter: true },
-  fat_mass: { ideal: null, unit: "kg", lowerIsBetter: true },
-  lean_mass: { ideal: null, unit: "kg", lowerIsBetter: false },
-  muscle_mass: { ideal: isReneer ? 30 : 25, unit: "kg", lowerIsBetter: false },
-  muscle_rate_percent: { ideal: isReneer ? 40 : 35, unit: "%", lowerIsBetter: false },
-  bone_mass: { ideal: isReneer ? 3.5 : 2.8, unit: "kg", lowerIsBetter: false },
-  protein_percent: { ideal: 18, unit: "%", lowerIsBetter: false },
-  body_water_percent: { ideal: 60, unit: "%", lowerIsBetter: false },
-  subcutaneous_fat_percent: { ideal: 20, unit: "%", lowerIsBetter: true },
-  visceral_fat: { ideal: 10, unit: "", lowerIsBetter: true },
-  bmr: { ideal: 1500, unit: "kcal", lowerIsBetter: false },
-  metabolic_age: { ideal: isReneer ? 41 : 43, unit: "anos", lowerIsBetter: true },
-  whr: { ideal: isReneer ? 0.90 : 0.80, unit: "", lowerIsBetter: true },
+  weight: { ideal: isReneer ? 80 : 55, unit: "kg", lowerIsBetter: false, tooltip: isReneer ? "Peso ideal para homem com perfil atlético moderado" : "Peso ideal para mulher com perfil saudável" },
+  bmi: { ideal: 24.9, unit: "", lowerIsBetter: true, tooltip: "IMC ideal: 18.5-24.9 (eutrófico)" },
+  body_fat_percent: { ideal: isReneer ? 20 : 25, unit: "%", lowerIsBetter: true, tooltip: isReneer ? "Gordura corporal ideal para homem: 15-20%" : "Gordura corporal ideal para mulher: 20-25%" },
+  fat_mass: { ideal: null, unit: "kg", lowerIsBetter: true, tooltip: "Massa de gordura total - varia conforme peso" },
+  lean_mass: { ideal: null, unit: "kg", lowerIsBetter: false, tooltip: "Massa livre de gordura - preservar é essencial" },
+  muscle_mass: { ideal: isReneer ? 30 : 25, unit: "kg", lowerIsBetter: false, tooltip: isReneer ? "Meta de massa muscular para homem com treino" : "Meta de massa muscular para mulher" },
+  muscle_rate_percent: { ideal: isReneer ? 40 : 35, unit: "%", lowerIsBetter: false, tooltip: "Percentual ideal de músculo no corpo" },
+  bone_mass: { ideal: isReneer ? 3.5 : 2.8, unit: "kg", lowerIsBetter: false, tooltip: "Massa óssea saudável para densidade adequada" },
+  protein_percent: { ideal: 18, unit: "%", lowerIsBetter: false, tooltip: "Proteína corporal ideal: 16-20%" },
+  body_water_percent: { ideal: 60, unit: "%", lowerIsBetter: false, tooltip: "Hidratação ideal: 55-65% de água corporal" },
+  subcutaneous_fat_percent: { ideal: 20, unit: "%", lowerIsBetter: true, tooltip: "Gordura subcutânea - sob a pele" },
+  visceral_fat: { ideal: 10, unit: "", lowerIsBetter: true, tooltip: "Gordura visceral ideal: 1-12 (saudável)" },
+  bmr: { ideal: 1500, unit: "kcal", lowerIsBetter: false, tooltip: "Taxa metabólica basal - calorias em repouso" },
+  metabolic_age: { ideal: isReneer ? 41 : 43, unit: "anos", lowerIsBetter: true, tooltip: "Idade metabólica ideal igual ou menor que idade real" },
+  whr: { ideal: isReneer ? 0.90 : 0.80, unit: "", lowerIsBetter: true, tooltip: isReneer ? "Relação cintura-quadril ideal homem: <0.90" : "Relação cintura-quadril ideal mulher: <0.80" },
 });
 
 type ColumnKey = keyof ReturnType<typeof getParams>;
@@ -109,146 +110,157 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-border">
-      <div className="flex">
-        {/* Fixed columns: Semana, Monjaro, Status */}
-        <div className="flex-shrink-0 z-10 bg-card shadow-md">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-800 hover:bg-slate-800">
-                <TableHead className="text-slate-100 font-bold w-20 text-center border-r border-slate-600">Semana</TableHead>
-                <TableHead className="text-slate-100 font-bold w-24 text-center border-r border-slate-600">Monjaro</TableHead>
-                <TableHead className="text-slate-100 font-bold w-28 text-center border-r border-slate-600">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* Linha 0: Parâmetros */}
-              <TableRow className="bg-violet-900/50 hover:bg-violet-900/50 border-b-2 border-violet-500">
-                <TableCell className="font-bold text-center text-violet-200 border-r border-slate-600">IDEAL</TableCell>
-                <TableCell className="text-center text-violet-200 border-r border-slate-600">-</TableCell>
-                <TableCell className="text-center text-violet-200 border-r border-slate-600">Meta</TableCell>
-              </TableRow>
-              {records.map((record, i) => {
-                const isHiato = record.status?.includes("HIATO");
-                return (
-                  <TableRow 
-                    key={record.id} 
-                    className={`${isHiato ? 'bg-amber-900/30' : i % 2 === 0 ? 'bg-slate-800/50' : 'bg-slate-700/50'} hover:bg-slate-600/50`}
-                  >
-                    <TableCell className="font-bold text-center text-slate-100 border-r border-slate-600">
-                      {record.week_number} {isHiato && '⚠️'}
-                    </TableCell>
-                    <TableCell className="text-center text-slate-200 border-r border-slate-600">{record.monjaro_dose} mg</TableCell>
-                    <TableCell className="text-center text-slate-200 border-r border-slate-600 text-xs">{record.status}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Scrollable columns */}
-        <div className="overflow-x-auto flex-1">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-800 hover:bg-slate-800">
-                {columns.map((col) => (
-                  <>
-                    <TableHead 
-                      key={col.key} 
-                      className="text-slate-100 font-bold text-center min-w-[80px] cursor-pointer hover:bg-slate-700 transition-colors"
-                      onClick={() => toggleColumn(col.key)}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        <span>{col.label}</span>
-                        {expandedCols.has(col.key) ? (
-                          <Minus className="w-3 h-3 text-violet-400" />
-                        ) : (
-                          <Plus className="w-3 h-3 text-emerald-400" />
-                        )}
-                      </div>
-                    </TableHead>
-                    {expandedCols.has(col.key) && (
-                      <TableHead 
-                        key={`${col.key}-diff`} 
-                        className="text-violet-300 font-semibold text-center min-w-[70px] bg-violet-900/40"
-                      >
-                        Δ Meta
-                      </TableHead>
-                    )}
-                  </>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* Linha 0: Parâmetros de referência */}
-              <TableRow className="bg-violet-900/50 hover:bg-violet-900/50 border-b-2 border-violet-500">
-                {columns.map((col) => {
-                  const param = params[col.key];
+    <TooltipProvider>
+      <div className="relative overflow-hidden rounded-lg border border-slate-600">
+        <div className="flex">
+          {/* Fixed column: Semana only */}
+          <div className="flex-shrink-0 z-10 bg-slate-900 shadow-lg border-r-2 border-violet-500">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-800 hover:bg-slate-800">
+                  <TableHead className="text-white font-bold w-20 text-center">Semana</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Linha 0: Parâmetros */}
+                <TableRow className="bg-violet-800/70 hover:bg-violet-800/70 border-b-2 border-violet-400">
+                  <TableCell className="font-bold text-center text-white">IDEAL</TableCell>
+                </TableRow>
+                {records.map((record, i) => {
+                  const isHiato = record.status?.includes("HIATO");
                   return (
-                    <>
-                      <TableCell 
-                        key={col.key} 
-                        className="text-center text-violet-200 font-semibold"
-                      >
-                        {param.ideal !== null ? `${param.ideal}${param.unit ? ` ${param.unit}` : ''}` : '-'}
+                    <TableRow 
+                      key={record.id} 
+                      className={`${isHiato ? 'bg-amber-900/50' : i % 2 === 0 ? 'bg-slate-800' : 'bg-slate-700'} hover:bg-slate-600`}
+                    >
+                      <TableCell className="font-bold text-center text-white">
+                        {record.week_number} {isHiato && '⚠️'}
                       </TableCell>
-                      {expandedCols.has(col.key) && (
-                        <TableCell 
-                          key={`${col.key}-diff`} 
-                          className="text-center text-violet-300 bg-violet-900/40"
-                        >
-                          -
-                        </TableCell>
-                      )}
-                    </>
+                    </TableRow>
                   );
                 })}
-              </TableRow>
-              
-              {/* Dados */}
-              {records.map((record, i) => {
-                const isHiato = record.status?.includes("HIATO");
-                const prev = i > 0 ? records[i - 1] : null;
-                
-                return (
-                  <TableRow 
-                    key={record.id} 
-                    className={`${isHiato ? 'bg-amber-900/30' : i % 2 === 0 ? 'bg-slate-800/50' : 'bg-slate-700/50'} hover:bg-slate-600/50`}
-                  >
-                    {columns.map((col) => {
-                      const value = Number((record as any)[col.key]);
-                      const prevValue = prev ? Number((prev as any)[col.key]) : null;
-                      const param = params[col.key];
-                      const diffInfo = getDiffToIdeal(value, param.ideal, param.lowerIsBetter);
-                      
-                      return (
-                        <>
-                          <TableCell 
-                            key={col.key} 
-                            className={`text-center ${getTextColor(value, prevValue, param.lowerIsBetter)}`}
-                          >
-                            {col.format(value)}
-                          </TableCell>
-                          {expandedCols.has(col.key) && (
-                            <TableCell 
-                              key={`${col.key}-diff`} 
-                              className={`text-center bg-violet-900/30 text-sm ${diffInfo.color}`}
-                            >
-                              {diffInfo.diff !== null ? diffInfo.label : '-'}
-                            </TableCell>
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Scrollable columns */}
+          <div className="overflow-x-auto flex-1">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-800 hover:bg-slate-800">
+                  <TableHead className="text-white font-bold w-24 text-center border-r border-slate-500">Monjaro</TableHead>
+                  <TableHead className="text-white font-bold w-28 text-center border-r border-slate-500">Status</TableHead>
+                  {columns.map((col) => (
+                    <>
+                      <TableHead 
+                        key={col.key} 
+                        className="text-white font-bold text-center min-w-[85px] cursor-pointer hover:bg-slate-700 transition-colors border-r border-slate-600"
+                        onClick={() => toggleColumn(col.key)}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          <span>{col.label}</span>
+                          {expandedCols.has(col.key) ? (
+                            <Minus className="w-3 h-3 text-violet-300" />
+                          ) : (
+                            <Plus className="w-3 h-3 text-cyan-300" />
                           )}
-                        </>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                        </div>
+                      </TableHead>
+                      {expandedCols.has(col.key) && (
+                        <TableHead 
+                          key={`${col.key}-diff`} 
+                          className="text-cyan-200 font-semibold text-center min-w-[75px] bg-cyan-900/60 border-r border-cyan-600"
+                        >
+                          Δ Meta
+                        </TableHead>
+                      )}
+                    </>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Linha 0: Parâmetros de referência */}
+                <TableRow className="bg-violet-800/70 hover:bg-violet-800/70 border-b-2 border-violet-400">
+                  <TableCell className="text-center text-violet-100 border-r border-slate-500">-</TableCell>
+                  <TableCell className="text-center text-violet-100 border-r border-slate-500">Meta</TableCell>
+                  {columns.map((col) => {
+                    const param = params[col.key];
+                    return (
+                      <>
+                        <TableCell 
+                          key={col.key} 
+                          className="text-center text-white font-semibold border-r border-slate-600"
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help underline decoration-dotted decoration-violet-300">
+                                {param.ideal !== null ? `${param.ideal}${param.unit ? ` ${param.unit}` : ''}` : '-'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-slate-800 text-white border-violet-500 max-w-xs">
+                              <p className="text-sm">{param.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                        {expandedCols.has(col.key) && (
+                          <TableCell 
+                            key={`${col.key}-diff`} 
+                            className="text-center text-cyan-200 bg-cyan-900/50 border-r border-cyan-600"
+                          >
+                            -
+                          </TableCell>
+                        )}
+                      </>
+                    );
+                  })}
+                </TableRow>
+                
+                {/* Dados */}
+                {records.map((record, i) => {
+                  const isHiato = record.status?.includes("HIATO");
+                  const prev = i > 0 ? records[i - 1] : null;
+                  
+                  return (
+                    <TableRow 
+                      key={record.id} 
+                      className={`${isHiato ? 'bg-amber-900/50' : i % 2 === 0 ? 'bg-slate-800' : 'bg-slate-700'} hover:bg-slate-600`}
+                    >
+                      <TableCell className="text-center text-slate-100 border-r border-slate-500">{record.monjaro_dose} mg</TableCell>
+                      <TableCell className="text-center text-slate-100 border-r border-slate-500 text-xs">{record.status}</TableCell>
+                      {columns.map((col) => {
+                        const value = Number((record as any)[col.key]);
+                        const prevValue = prev ? Number((prev as any)[col.key]) : null;
+                        const param = params[col.key];
+                        const diffInfo = getDiffToIdeal(value, param.ideal, param.lowerIsBetter);
+                        
+                        return (
+                          <>
+                            <TableCell 
+                              key={col.key} 
+                              className={`text-center border-r border-slate-600 ${getTextColor(value, prevValue, param.lowerIsBetter)}`}
+                            >
+                              {col.format(value)}
+                            </TableCell>
+                            {expandedCols.has(col.key) && (
+                              <TableCell 
+                                key={`${col.key}-diff`} 
+                                className={`text-center bg-cyan-900/40 text-sm font-medium border-r border-cyan-700 ${diffInfo.color}`}
+                              >
+                                {diffInfo.diff !== null ? diffInfo.label : '-'}
+                              </TableCell>
+                            )}
+                          </>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
