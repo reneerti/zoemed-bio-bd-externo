@@ -6,37 +6,39 @@
 
 @layer base {
   :root {
-    /* Health App - Warm Coral/Rose Theme */
+    /* Health App - Blue/Teal Theme */
     --coral: 0 72% 71%;
     --rose: 355 78% 55%;
     --mint: 157 100% 51%;
-    --teal: 163 94% 42%;
-    --cream: 30 100% 97%;
-    --sand: 28 47% 91%;
-    --charcoal: 229 26% 23%;
-    --slate: 222 20% 39%;
+    --teal: 190 94% 42%;
+    --cream: 210 40% 98%;
+    --sand: 210 30% 93%;
+    --charcoal: 220 26% 18%;
+    --slate: 215 20% 45%;
     --gold: 43 70% 53%;
+    --blue-primary: 217 91% 60%;
+    --blue-dark: 220 70% 45%;
     
-    --background: 30 100% 97%;
-    --foreground: 229 26% 23%;
+    --background: 210 40% 98%;
+    --foreground: 220 26% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 229 26% 23%;
+    --card-foreground: 220 26% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 229 26% 23%;
+    --popover-foreground: 220 26% 18%;
 
-    --primary: 355 78% 55%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 28 47% 91%;
-    --secondary-foreground: 229 26% 23%;
+    --secondary: 210 30% 93%;
+    --secondary-foreground: 220 26% 18%;
 
-    --muted: 28 47% 91%;
-    --muted-foreground: 222 20% 39%;
+    --muted: 210 30% 93%;
+    --muted-foreground: 215 20% 45%;
 
-    --accent: 157 100% 51%;
-    --accent-foreground: 229 26% 23%;
+    --accent: 190 94% 42%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -45,22 +47,22 @@
     --success-foreground: 0 0% 100%;
 
     --warning: 43 70% 53%;
-    --warning-foreground: 229 26% 23%;
+    --warning-foreground: 220 26% 18%;
 
-    --border: 28 30% 85%;
-    --input: 28 30% 85%;
-    --ring: 355 78% 55%;
+    --border: 210 25% 88%;
+    --input: 210 25% 88%;
+    --ring: 217 91% 60%;
 
     --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 220 26% 18%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 210 30% 95%;
+    --sidebar-accent-foreground: 220 26% 18%;
+    --sidebar-border: 210 25% 91%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   .dark {
@@ -108,7 +110,7 @@
 
 @layer components {
   .gradient-primary {
-    @apply bg-gradient-to-r from-[hsl(var(--coral))] to-[hsl(var(--rose))];
+    @apply bg-gradient-to-r from-[hsl(var(--blue-primary))] to-[hsl(var(--blue-dark))];
   }
   
   .gradient-success {
@@ -116,7 +118,7 @@
   }
   
   .gradient-bg {
-    background: linear-gradient(135deg, hsl(var(--cream)) 0%, hsl(var(--sand)) 50%, #FFE8D6 100%);
+    background: linear-gradient(135deg, hsl(210 40% 98%) 0%, hsl(210 35% 94%) 50%, hsl(215 45% 92%) 100%);
   }
   
   .card-elevated {
@@ -124,7 +126,7 @@
   }
   
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--coral))] to-[hsl(var(--rose))];
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--blue-primary))] to-[hsl(var(--blue-dark))];
   }
 }
 
