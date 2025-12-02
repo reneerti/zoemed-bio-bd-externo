@@ -10,6 +10,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AnaPaulaProtocol from "@/components/AnaPaulaProtocol";
 import ReneerProtocol from "@/components/ReneerProtocol";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BioimpedanceRecord {
   id: string;
@@ -40,20 +41,22 @@ interface BioimpedanceRecord {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { person } = useParams<{ person: string }>();
+  const { user, loading } = useAuth();
   const [records, setRecords] = useState<BioimpedanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const isReneer = person === "reneer";
   const personName = isReneer ? "Reneer" : "Ana Paula";
 
   useEffect(() => {
-    const isAuth = localStorage.getItem("isAuthenticated");
-    if (!isAuth) {
+    if (!loading && !user) {
       navigate("/");
       return;
     }
-    loadData();
-  }, [person, navigate]);
+    if (user) {
+      loadData();
+    }
+  }, [person, user, loading, navigate]);
 
   const loadData = async () => {
     try {
@@ -69,7 +72,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -105,7 +108,7 @@ const Dashboard = () => {
     a.click();
   };
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground text-xl">Carregando...</div>
