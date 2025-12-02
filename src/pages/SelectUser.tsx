@@ -110,20 +110,23 @@ const SelectUser = () => {
 
   const UserCard = ({ data, person }: { data: UserSummary | null; person: "reneer" | "ana_paula" }) => {
     const isReneer = person === "reneer";
+    const primaryColor = isReneer ? 'hsl(217, 91%, 60%)' : 'hsl(340, 82%, 62%)';
+    const bgClass = isReneer ? 'bg-reneer-primary' : 'bg-ana-paula-primary';
+    const bgLightClass = isReneer ? 'bg-blue-100 text-blue-600' : 'bg-rose/20 text-rose';
     
     return (
       <Card 
         className="card-elevated border-0 cursor-pointer group overflow-hidden"
         onClick={() => navigate(`/dashboard/${person}`)}
       >
-        <div className={`h-1 ${isReneer ? 'bg-blue-500' : 'gradient-primary'}`} />
+        <div className={`h-1 ${bgClass}`} />
         <CardHeader className="pb-2">
           <div className="flex items-center gap-3">
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isReneer ? 'bg-blue-100 text-blue-600' : 'bg-coral/20 text-coral'}`}>
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center ${bgLightClass}`}>
               <User className="w-7 h-7" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-serif group-hover:text-primary transition-colors">
+              <CardTitle className={`text-2xl font-serif group-hover:${isReneer ? 'text-reneer-primary' : 'text-ana-paula-primary'} transition-colors`}>
                 {data?.name || (isReneer ? "Reneer" : "Ana Paula")}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
@@ -182,9 +185,9 @@ const SelectUser = () => {
                       <Line 
                         type="monotone" 
                         dataKey="weight" 
-                        stroke={isReneer ? '#3b82f6' : '#FF6B6B'} 
+                        stroke={primaryColor} 
                         strokeWidth={2}
-                        dot={{ fill: isReneer ? '#3b82f6' : '#FF6B6B', r: 3 }}
+                        dot={{ fill: primaryColor, r: 3 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>

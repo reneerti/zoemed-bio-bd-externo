@@ -20,6 +20,7 @@ export default {
       colors: {
         coral: "hsl(var(--coral))",
         rose: "hsl(var(--rose))",
+        "rose-dark": "hsl(var(--rose-dark))",
         mint: "hsl(var(--mint))",
         teal: "hsl(var(--teal))",
         cream: "hsl(var(--cream))",
@@ -29,6 +30,10 @@ export default {
         gold: "hsl(var(--gold))",
         "blue-primary": "hsl(var(--blue-primary))",
         "blue-dark": "hsl(var(--blue-dark))",
+        "reneer-primary": "hsl(var(--reneer-primary))",
+        "reneer-secondary": "hsl(var(--reneer-secondary))",
+        "ana-paula-primary": "hsl(var(--ana-paula-primary))",
+        "ana-paula-secondary": "hsl(var(--ana-paula-secondary))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

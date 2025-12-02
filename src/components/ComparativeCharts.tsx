@@ -41,6 +41,9 @@ interface ComparativeChartsProps {
   data: ComparisonData;
 }
 
+const RENEER_COLOR = 'hsl(217, 91%, 60%)';
+const ANA_PAULA_COLOR = 'hsl(340, 82%, 62%)';
+
 const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
   const [insights, setInsights] = useState<string | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -186,19 +189,19 @@ const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
                   <Line 
                     type="monotone" 
                     dataKey="reneer" 
-                    stroke="#3b82f6" 
+                    stroke={RENEER_COLOR} 
                     strokeWidth={2} 
                     name="Reneer"
-                    dot={{ fill: '#3b82f6', r: 3 }}
+                    dot={{ fill: RENEER_COLOR, r: 3 }}
                     connectNulls
                   />
                   <Line 
                     type="monotone" 
                     dataKey="anaPaula" 
-                    stroke="#FF6B6B" 
+                    stroke={ANA_PAULA_COLOR} 
                     strokeWidth={2} 
                     name="Ana Paula"
-                    dot={{ fill: '#FF6B6B', r: 3 }}
+                    dot={{ fill: ANA_PAULA_COLOR, r: 3 }}
                     connectNulls
                   />
                 </LineChart>
@@ -226,19 +229,19 @@ const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
                   <Line 
                     type="monotone" 
                     dataKey="reneer" 
-                    stroke="#3b82f6" 
+                    stroke={RENEER_COLOR} 
                     strokeWidth={2} 
                     name="Reneer"
-                    dot={{ fill: '#3b82f6', r: 3 }}
+                    dot={{ fill: RENEER_COLOR, r: 3 }}
                     connectNulls
                   />
                   <Line 
                     type="monotone" 
                     dataKey="anaPaula" 
-                    stroke="#FF6B6B" 
+                    stroke={ANA_PAULA_COLOR} 
                     strokeWidth={2} 
                     name="Ana Paula"
-                    dot={{ fill: '#FF6B6B', r: 3 }}
+                    dot={{ fill: ANA_PAULA_COLOR, r: 3 }}
                     connectNulls
                   />
                 </LineChart>
@@ -260,8 +263,8 @@ const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
                   <YAxis dataKey="metric" type="category" tick={{ fontSize: 11 }} width={80} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="reneer" fill="#3b82f6" name="Reneer" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="anaPaula" fill="#FF6B6B" name="Ana Paula" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="reneer" fill={RENEER_COLOR} name="Reneer" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="anaPaula" fill={ANA_PAULA_COLOR} name="Ana Paula" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -283,15 +286,15 @@ const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
                   <Radar 
                     name="Reneer" 
                     dataKey="reneer" 
-                    stroke="#3b82f6" 
-                    fill="#3b82f6" 
+                    stroke={RENEER_COLOR} 
+                    fill={RENEER_COLOR} 
                     fillOpacity={0.3}
                   />
                   <Radar 
                     name="Ana Paula" 
                     dataKey="anaPaula" 
-                    stroke="#FF6B6B" 
-                    fill="#FF6B6B" 
+                    stroke={ANA_PAULA_COLOR} 
+                    fill={ANA_PAULA_COLOR} 
                     fillOpacity={0.3}
                   />
                   <Legend />
@@ -304,28 +307,28 @@ const ComparativeCharts = ({ data }: ComparativeChartsProps) => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-0 bg-blue-500/10">
+        <Card className="border-0 bg-reneer-primary/10">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">Reneer - Peso</p>
-            <p className="text-xl font-bold text-blue-600">{data.reneer.weight.toFixed(1)} kg</p>
+            <p className="text-xl font-bold text-reneer-primary">{data.reneer.weight.toFixed(1)} kg</p>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-coral/10">
+        <Card className="border-0 bg-ana-paula-primary/10">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">Ana Paula - Peso</p>
-            <p className="text-xl font-bold text-coral">{data.anaPaula.weight.toFixed(1)} kg</p>
+            <p className="text-xl font-bold text-ana-paula-primary">{data.anaPaula.weight.toFixed(1)} kg</p>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-blue-500/10">
+        <Card className="border-0 bg-reneer-primary/10">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">Reneer - Gordura</p>
-            <p className="text-xl font-bold text-blue-600">{data.reneer.fat.toFixed(1)}%</p>
+            <p className="text-xl font-bold text-reneer-primary">{data.reneer.fat.toFixed(1)}%</p>
           </CardContent>
         </Card>
-        <Card className="border-0 bg-coral/10">
+        <Card className="border-0 bg-ana-paula-primary/10">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground mb-1">Ana Paula - Gordura</p>
-            <p className="text-xl font-bold text-coral">{data.anaPaula.fat.toFixed(1)}%</p>
+            <p className="text-xl font-bold text-ana-paula-primary">{data.anaPaula.fat.toFixed(1)}%</p>
           </CardContent>
         </Card>
       </div>
