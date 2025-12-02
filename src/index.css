@@ -8,7 +8,8 @@
   :root {
     /* Health App - Blue/Teal Theme */
     --coral: 0 72% 71%;
-    --rose: 355 78% 55%;
+    --rose: 340 82% 62%;
+    --rose-dark: 340 70% 50%;
     --mint: 157 100% 51%;
     --teal: 190 94% 42%;
     --cream: 210 40% 98%;
@@ -18,6 +19,12 @@
     --gold: 43 70% 53%;
     --blue-primary: 217 91% 60%;
     --blue-dark: 220 70% 45%;
+    
+    /* User-specific colors */
+    --reneer-primary: 217 91% 60%;
+    --reneer-secondary: 220 70% 45%;
+    --ana-paula-primary: 340 82% 62%;
+    --ana-paula-secondary: 340 70% 50%;
     
     --background: 210 40% 98%;
     --foreground: 220 26% 18%;
