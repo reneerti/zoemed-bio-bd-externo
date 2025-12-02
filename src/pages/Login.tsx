@@ -1,39 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Heart, Upload, Eye, EyeOff, Smartphone } from "lucide-react";
-
-const VALID_USER = "RENEER.JESUS";
-const VALID_PASSWORD = "An@2025";
+import { Heart, Upload, Eye, EyeOff, Smartphone, UserPlus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
+  const { signIn, signUp, user, loading } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/selecionar");
+    }
+  }, [user, loading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+
     setIsLoading(true);
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (email.toUpperCase() === VALID_USER && password === VALID_PASSWORD) {
-      localStorage.setItem("isAuthenticated", "true");
-      toast.success("Login realizado com sucesso!");
-      navigate("/selecionar");
-    } else {
-      toast.error("Usuário ou senha inválidos");
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast.error("Este email já está cadastrado. Tente fazer login.");
+          } else {
+            toast.error(error.message || "Erro ao criar conta");
+          }
+        } else {
+          toast.success("Conta criada com sucesso!");
+          navigate("/selecionar");
+        }
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) {
+          if (error.message.includes("Invalid login")) {
+            toast.error("Email ou senha incorretos");
+          } else {
+            toast.error(error.message || "Erro ao fazer login");
+          }
+        } else {
+          toast.success("Login realizado com sucesso!");
+          navigate("/selecionar");
+        }
+      }
+    } catch (err) {
+      toast.error("Erro inesperado. Tente novamente.");
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground text-xl">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -51,19 +95,24 @@ const Login = () => {
         <Card className="card-elevated border-0 overflow-hidden">
           <div className="h-1 gradient-primary" />
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-serif text-center">Entrar</CardTitle>
+            <CardTitle className="text-2xl font-serif text-center">
+              {isSignUp ? "Criar Conta" : "Entrar"}
+            </CardTitle>
             <CardDescription className="text-center">
-              Digite suas credenciais para acessar
+              {isSignUp 
+                ? "Crie sua conta para acessar" 
+                : "Digite suas credenciais para acessar"
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Usuário</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  type="text"
-                  placeholder="RENEER.JESUS"
+                  type="email"
+                  placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-12 rounded-xl"
@@ -81,6 +130,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-12 rounded-xl pr-12"
                     required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -96,9 +146,25 @@ const Login = () => {
                 className="w-full h-12 rounded-xl gradient-primary hover:opacity-90 transition-opacity text-lg font-medium"
                 disabled={isLoading}
               >
-                {isLoading ? "Entrando..." : "Entrar"}
+                {isLoading 
+                  ? (isSignUp ? "Criando conta..." : "Entrando...") 
+                  : (isSignUp ? "Criar Conta" : "Entrar")
+                }
               </Button>
             </form>
+
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                {isSignUp 
+                  ? "Já tem uma conta? Faça login" 
+                  : "Não tem conta? Cadastre-se"
+                }
+              </button>
+            </div>
 
             <div className="mt-6 pt-6 border-t border-border space-y-3">
               <Button

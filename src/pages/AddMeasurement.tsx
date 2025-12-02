@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const AddMeasurement = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const { user, loading } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     user_person: "",
     measurement_date: new Date().toISOString().split("T")[0],
@@ -39,11 +41,10 @@ const AddMeasurement = () => {
   });
 
   useEffect(() => {
-    const isAuth = localStorage.getItem("isAuthenticated");
-    if (!isAuth) {
+    if (!loading && !user) {
       navigate("/");
     }
-  }, [navigate]);
+  }, [user, loading, navigate]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -57,7 +58,7 @@ const AddMeasurement = () => {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       const dataToInsert = {
@@ -96,7 +97,7 @@ const AddMeasurement = () => {
       console.error("Error adding measurement:", error);
       toast.error("Erro ao adicionar medição");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -123,6 +124,14 @@ const AddMeasurement = () => {
     { name: "metabolic_age", label: "Idade Metabólica", type: "number" },
     { name: "whr", label: "WHR (Cintura/Quadril)", type: "number", step: "0.01" },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground text-xl">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
@@ -184,10 +193,10 @@ const AddMeasurement = () => {
               <Button
                 type="submit"
                 className="w-full h-12 rounded-xl gradient-primary hover:opacity-90 transition-opacity text-lg font-medium"
-                disabled={loading}
+                disabled={submitting}
               >
                 <Save className="w-5 h-5 mr-2" />
-                {loading ? "Salvando..." : "Salvar Medição"}
+                {submitting ? "Salvando..." : "Salvar Medição"}
               </Button>
             </form>
           </CardContent>

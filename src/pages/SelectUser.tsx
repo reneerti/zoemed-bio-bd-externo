@@ -9,6 +9,7 @@ import ComparativeCharts from "@/components/ComparativeCharts";
 import { toast } from "sonner";
 import reneerAvatar from "@/assets/reneer-avatar.png";
 import anaPaulaAvatar from "@/assets/ana-paula-avatar.png";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UserSummary {
   name: string;
@@ -33,9 +34,10 @@ interface UserProfile {
 
 const SelectUser = () => {
   const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
   const [reneerData, setReneerData] = useState<UserSummary | null>(null);
   const [anaPaulaData, setAnaPaulaData] = useState<UserSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [showComparison, setShowComparison] = useState(false);
   const [profiles, setProfiles] = useState<{ reneer: UserProfile | null; anaPaula: UserProfile | null }>({
     reneer: null,
@@ -44,14 +46,15 @@ const SelectUser = () => {
   const [uploading, setUploading] = useState<string | null>(null);
 
   useEffect(() => {
-    const isAuth = localStorage.getItem("isAuthenticated");
-    if (!isAuth) {
+    if (!loading && !user) {
       navigate("/");
       return;
     }
-    loadData();
-    loadProfiles();
-  }, [navigate]);
+    if (user) {
+      loadData();
+      loadProfiles();
+    }
+  }, [user, loading, navigate]);
 
   const loadProfiles = async () => {
     try {
@@ -176,8 +179,13 @@ const SelectUser = () => {
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
   };
 
   const UserCard = ({ data, person }: { data: UserSummary | null; person: "reneer" | "ana_paula" }) => {
@@ -350,6 +358,14 @@ const SelectUser = () => {
     },
   } : null;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground text-xl">Carregando...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
@@ -357,10 +373,7 @@ const SelectUser = () => {
           <Button
             variant="ghost"
             className="gap-2"
-            onClick={() => {
-              localStorage.removeItem("isAuthenticated");
-              navigate("/");
-            }}
+            onClick={handleSignOut}
           >
             <ArrowLeft className="w-4 h-4" />
             Sair
