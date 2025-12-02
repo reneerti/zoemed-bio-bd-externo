@@ -27,6 +27,8 @@ export default {
         charcoal: "hsl(var(--charcoal))",
         slate: "hsl(var(--slate))",
         gold: "hsl(var(--gold))",
+        "blue-primary": "hsl(var(--blue-primary))",
+        "blue-dark": "hsl(var(--blue-dark))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -94,8 +96,8 @@ export default {
           to: { height: "0" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(255, 107, 107, 0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(255, 107, 107, 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(59, 130, 246, 0.3)" },
+          "50%": { boxShadow: "0 0 40px rgba(59, 130, 246, 0.6)" },
         },
       },
       animation: {
