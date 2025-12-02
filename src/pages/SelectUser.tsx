@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, TrendingDown, TrendingUp, Scale, Activity, Plus } from "lucide-react";
+import { ArrowLeft, User, TrendingDown, TrendingUp, Scale, Activity, Plus, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import ComparativeCharts from "@/components/ComparativeCharts";
 
 interface UserSummary {
   name: string;
@@ -13,8 +14,12 @@ interface UserSummary {
   weightChange: number;
   latestFat: number;
   latestMuscle: number;
+  latestVisceralFat: number;
+  latestBmi: number;
+  latestBmr: number;
   measurements: number;
   chartData: { week: number; weight: number }[];
+  fatHistory: { week: number; fat: number }[];
 }
 
 const SelectUser = () => {
@@ -22,6 +27,7 @@ const SelectUser = () => {
   const [reneerData, setReneerData] = useState<UserSummary | null>(null);
   const [anaPaulaData, setAnaPaulaData] = useState<UserSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     const isAuth = localStorage.getItem("isAuthenticated");
@@ -56,10 +62,17 @@ const SelectUser = () => {
           weightChange: Number(last.weight) - Number(first.weight),
           latestFat: Number(last.body_fat_percent),
           latestMuscle: Number(last.muscle_rate_percent),
+          latestVisceralFat: Number(last.visceral_fat),
+          latestBmi: Number(last.bmi),
+          latestBmr: Number(last.bmr),
           measurements: reneerRecords.length,
           chartData: reneerRecords.map((r) => ({
             week: r.week_number || 0,
             weight: Number(r.weight),
+          })),
+          fatHistory: reneerRecords.map((r) => ({
+            week: r.week_number || 0,
+            fat: Number(r.body_fat_percent),
           })),
         });
       }
@@ -74,10 +87,17 @@ const SelectUser = () => {
           weightChange: Number(last.weight) - Number(first.weight),
           latestFat: Number(last.body_fat_percent),
           latestMuscle: Number(last.muscle_rate_percent),
+          latestVisceralFat: Number(last.visceral_fat),
+          latestBmi: Number(last.bmi),
+          latestBmr: Number(last.bmr),
           measurements: anaPaulaRecords.length,
           chartData: anaPaulaRecords.map((r) => ({
             week: r.week_number || 0,
             weight: Number(r.weight),
+          })),
+          fatHistory: anaPaulaRecords.map((r) => ({
+            week: r.week_number || 0,
+            fat: Number(r.body_fat_percent),
           })),
         });
       }
@@ -181,6 +201,29 @@ const SelectUser = () => {
     );
   };
 
+  const comparisonData = reneerData && anaPaulaData ? {
+    reneer: {
+      weight: reneerData.latestWeight,
+      fat: reneerData.latestFat,
+      muscle: reneerData.latestMuscle,
+      visceralFat: reneerData.latestVisceralFat,
+      bmi: reneerData.latestBmi,
+      bmr: reneerData.latestBmr,
+      weightHistory: reneerData.chartData,
+      fatHistory: reneerData.fatHistory,
+    },
+    anaPaula: {
+      weight: anaPaulaData.latestWeight,
+      fat: anaPaulaData.latestFat,
+      muscle: anaPaulaData.latestMuscle,
+      visceralFat: anaPaulaData.latestVisceralFat,
+      bmi: anaPaulaData.latestBmi,
+      bmr: anaPaulaData.latestBmr,
+      weightHistory: anaPaulaData.chartData,
+      fatHistory: anaPaulaData.fatHistory,
+    },
+  } : null;
+
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
@@ -196,14 +239,24 @@ const SelectUser = () => {
             <ArrowLeft className="w-4 h-4" />
             Sair
           </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => navigate("/adicionar")}
-          >
-            <Plus className="w-4 h-4" />
-            Adicionar Medição
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={showComparison ? "default" : "outline"}
+              className="gap-2"
+              onClick={() => setShowComparison(!showComparison)}
+            >
+              <BarChart3 className="w-4 h-4" />
+              {showComparison ? "Ver Perfis" : "Comparar"}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => navigate("/adicionar")}
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar
+            </Button>
+          </div>
         </div>
 
         <div className="text-center mb-10 animate-fade-in">
@@ -213,10 +266,14 @@ const SelectUser = () => {
           <p className="text-lg text-muted-foreground">Família de Jesus</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 animate-slide-up">
-          <UserCard data={reneerData} person="reneer" />
-          <UserCard data={anaPaulaData} person="ana_paula" />
-        </div>
+        {showComparison && comparisonData ? (
+          <ComparativeCharts data={comparisonData} />
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6 animate-slide-up">
+            <UserCard data={reneerData} person="reneer" />
+            <UserCard data={anaPaulaData} person="ana_paula" />
+          </div>
+        )}
       </div>
     </div>
   );
