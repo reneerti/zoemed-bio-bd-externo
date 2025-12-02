@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Download, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BioimpedanceTable from "@/components/BioimpedanceTable";
 import AnaPaulaProtocol from "@/components/AnaPaulaProtocol";
 import ReneerProtocol from "@/components/ReneerProtocol";
 import { useAuth } from "@/hooks/useAuth";
@@ -301,110 +300,10 @@ const Dashboard = () => {
             <Card className="card-elevated border-0">
               <CardHeader>
                 <CardTitle className="font-serif">Bioimpedância Completa</CardTitle>
+                <p className="text-sm text-muted-foreground">Clique no + de cada coluna para ver a diferença até o valor ideal</p>
               </CardHeader>
-              <CardContent>
-                <ScrollArea className="w-full">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-charcoal hover:bg-charcoal">
-                        <TableHead className="text-primary-foreground font-semibold">Semana</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Monjaro</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Status</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Peso</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">IMC</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Gordura %</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">M. Gorda</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">M. Livre</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">M. Musc</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Taxa Musc %</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">M. Óssea</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Proteína %</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Água %</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">G. Subcut %</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">G. Visceral</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">TMB</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">Id. Met.</TableHead>
-                        <TableHead className="text-primary-foreground font-semibold">WHR</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {records.map((record, i) => {
-                        const isHiato = record.status?.includes("HIATO");
-                        const prev = i > 0 ? records[i - 1] : null;
-                        
-                        // Get text color only based on evolution
-                        const getTextColor = (current: number | null, previous: number | null, lowerIsBetter: boolean) => {
-                          if (!prev || current === null || previous === null) return "text-foreground";
-                          const diff = current - previous;
-                          const threshold = Math.abs(previous * 0.005);
-                          
-                          if (Math.abs(diff) <= threshold) return "text-amber-500 font-medium";
-                          if (lowerIsBetter) {
-                            return diff < 0 ? "text-emerald-600 font-medium" : "text-red-500 font-medium"; 
-                          }
-                          return diff > 0 ? "text-emerald-600 font-medium" : "text-red-500 font-medium";
-                        };
-                        
-                        return (
-                          <TableRow 
-                            key={record.id} 
-                            className={`${isHiato ? 'bg-warning/20' : i % 2 === 0 ? 'bg-card' : 'bg-secondary/30'}`}
-                          >
-                            <TableCell className="font-semibold">{record.week_number} {isHiato && '⚠️'}</TableCell>
-                            <TableCell>{record.monjaro_dose} mg</TableCell>
-                            <TableCell>{record.status}</TableCell>
-                            <TableCell className={`font-semibold ${getTextColor(Number(record.weight), prev ? Number(prev.weight) : null, true)}`}>
-                              {Number(record.weight).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.bmi), prev ? Number(prev.bmi) : null, true)}>
-                              {Number(record.bmi).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.body_fat_percent), prev ? Number(prev.body_fat_percent) : null, true)}>
-                              {Number(record.body_fat_percent).toFixed(1)}%
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.fat_mass), prev ? Number(prev.fat_mass) : null, true)}>
-                              {Number(record.fat_mass).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.lean_mass), prev ? Number(prev.lean_mass) : null, false)}>
-                              {Number(record.lean_mass).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.muscle_mass), prev ? Number(prev.muscle_mass) : null, false)}>
-                              {Number(record.muscle_mass).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.muscle_rate_percent), prev ? Number(prev.muscle_rate_percent) : null, false)}>
-                              {Number(record.muscle_rate_percent).toFixed(1)}%
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.bone_mass), prev ? Number(prev.bone_mass) : null, false)}>
-                              {Number(record.bone_mass).toFixed(1)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.protein_percent), prev ? Number(prev.protein_percent) : null, false)}>
-                              {Number(record.protein_percent).toFixed(1)}%
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.body_water_percent), prev ? Number(prev.body_water_percent) : null, false)}>
-                              {Number(record.body_water_percent).toFixed(1)}%
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.subcutaneous_fat_percent), prev ? Number(prev.subcutaneous_fat_percent) : null, true)}>
-                              {Number(record.subcutaneous_fat_percent).toFixed(1)}%
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.visceral_fat), prev ? Number(prev.visceral_fat) : null, true)}>
-                              {Number(record.visceral_fat).toFixed(0)}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.bmr), prev ? Number(prev.bmr) : null, false)}>
-                              {record.bmr}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.metabolic_age), prev ? Number(prev.metabolic_age) : null, true)}>
-                              {record.metabolic_age}
-                            </TableCell>
-                            <TableCell className={getTextColor(Number(record.whr), prev ? Number(prev.whr) : null, true)}>
-                              {Number(record.whr).toFixed(2)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+              <CardContent className="p-2">
+                <BioimpedanceTable records={records} isReneer={isReneer} />
               </CardContent>
             </Card>
           </TabsContent>
