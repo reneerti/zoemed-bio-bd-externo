@@ -91,7 +91,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
     const diff = current - previous;
     const threshold = Math.abs(previous * 0.005);
     
-    if (Math.abs(diff) <= threshold) return "text-yellow-300 font-semibold";
+    if (Math.abs(diff) <= threshold) return "text-cyan-300 font-semibold";
     if (lowerIsBetter) {
       return diff < 0 ? "text-emerald-400 font-semibold" : "text-red-400 font-semibold"; 
     }
@@ -117,7 +117,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-900 hover:bg-slate-900">
-                <TableHead className="text-cyan-300 font-bold w-20 text-center sticky left-0 z-20 bg-slate-900 border-r-2 border-violet-400">Semana</TableHead>
+                <TableHead className="text-white font-bold w-20 text-center sticky left-0 z-20 bg-blue-600 border-r-2 border-violet-400">Semana</TableHead>
                 <TableHead className="text-cyan-300 font-bold w-24 text-center border-r border-slate-600">Monjaro</TableHead>
                 <TableHead className="text-cyan-300 font-bold w-28 text-center border-r border-slate-600">Status</TableHead>
                 {columns.map((col) => (
@@ -151,7 +151,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
             <TableBody>
               {/* Linha 0: Parâmetros de referência */}
               <TableRow className="bg-violet-900 hover:bg-violet-900 border-b-2 border-violet-400">
-                <TableCell className="font-bold text-center text-yellow-200 sticky left-0 z-20 bg-violet-900 border-r-2 border-violet-400">IDEAL</TableCell>
+                <TableCell className="font-bold text-center text-white sticky left-0 z-20 bg-blue-700 border-r-2 border-violet-400">IDEAL</TableCell>
                 <TableCell className="text-center text-violet-200 border-r border-slate-500">-</TableCell>
                 <TableCell className="text-center text-violet-200 border-r border-slate-500">Meta</TableCell>
                 {columns.map((col) => {
@@ -160,11 +160,11 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
                     <>
                       <TableCell 
                         key={col.key} 
-                        className="text-center text-yellow-200 font-semibold border-r border-slate-500"
+                        className="text-center text-white font-semibold border-r border-slate-500"
                       >
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="cursor-help underline decoration-dotted decoration-yellow-400">
+                            <span className="cursor-help underline decoration-dotted decoration-violet-300">
                               {param.ideal !== null ? `${param.ideal}${param.unit ? ` ${param.unit}` : ''}` : '-'}
                             </span>
                           </TooltipTrigger>
@@ -197,7 +197,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
                     key={record.id} 
                     className={`${rowBg} hover:bg-slate-600`}
                   >
-                    <TableCell className={`font-bold text-center text-slate-900 sticky left-0 z-20 ${rowBg} border-r-2 border-violet-400`}>
+                    <TableCell className="font-bold text-center text-white sticky left-0 z-20 bg-blue-600 border-r-2 border-violet-400">
                       {record.week_number} {isHiato && '⚠️'}
                     </TableCell>
                     <TableCell className="text-center text-slate-200 border-r border-slate-600">{record.monjaro_dose} mg</TableCell>
