@@ -99,12 +99,13 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
   };
 
   const getDiffToIdeal = (value: number | null, ideal: number | null, lowerIsBetter: boolean) => {
-    if (value === null || ideal === null) return { diff: null, color: "text-slate-400" };
+    if (value === null || ideal === null) return { diff: null, color: "text-slate-400", bg: "bg-slate-50" };
     const diff = value - ideal;
     const isGood = lowerIsBetter ? diff <= 0 : diff >= 0;
     return {
       diff: diff,
-      color: isGood ? "text-emerald-400" : "text-red-400",
+      color: isGood ? "text-green-600" : "text-red-500",
+      bg: isGood ? "bg-green-50" : "bg-red-50",
       label: diff > 0 ? `+${Math.abs(diff).toFixed(1)}` : `-${Math.abs(diff).toFixed(1)}`,
     };
   };
@@ -138,7 +139,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
                     {expandedCols.has(col.key) && (
                       <TableHead 
                         key={`${col.key}-diff`} 
-                        className="text-slate-700 font-bold text-center min-w-[75px] bg-amber-100 border-r border-amber-300"
+                        className="text-slate-600 font-semibold text-center min-w-[75px] bg-slate-100 border-r border-slate-300"
                       >
                         Δ Meta
                       </TableHead>
@@ -175,7 +176,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
                     {expandedCols.has(col.key) && (
                       <TableCell 
                         key={`${col.key}-diff`} 
-                        className="text-center text-slate-500 bg-amber-50 border-r border-amber-200"
+                        className="text-center text-slate-400 bg-slate-50 border-r border-slate-200"
                       >
                         -
                       </TableCell>
@@ -218,7 +219,7 @@ const BioimpedanceTable = ({ records, isReneer }: Props) => {
                           {expandedCols.has(col.key) && (
                             <TableCell 
                               key={`${col.key}-diff`} 
-                              className={`text-center bg-amber-50 text-sm font-extrabold border-r border-amber-200 ${diffInfo.color}`}
+                              className={`text-center ${diffInfo.bg} text-sm font-semibold border-r border-slate-200 ${diffInfo.color}`}
                             >
                               {diffInfo.diff !== null ? diffInfo.label : '-'}
                             </TableCell>
