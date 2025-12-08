@@ -212,6 +212,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_goals: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          target_bmi: number | null
+          target_body_fat: number | null
+          target_muscle: number | null
+          target_visceral_fat: number | null
+          target_weight: number | null
+          updated_at: string
+          user_person: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          target_bmi?: number | null
+          target_body_fat?: number | null
+          target_muscle?: number | null
+          target_visceral_fat?: number | null
+          target_weight?: number | null
+          updated_at?: string
+          user_person: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          target_bmi?: number | null
+          target_body_fat?: number | null
+          target_muscle?: number | null
+          target_visceral_fat?: number | null
+          target_weight?: number | null
+          updated_at?: string
+          user_person?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           avatar_url: string | null

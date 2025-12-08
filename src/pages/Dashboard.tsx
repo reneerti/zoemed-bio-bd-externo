@@ -10,6 +10,8 @@ import BioimpedanceTable from "@/components/BioimpedanceTable";
 import AnaPaulaProtocol from "@/components/AnaPaulaProtocol";
 import ReneerProtocol from "@/components/ReneerProtocol";
 import AnalysisHistory from "@/components/AnalysisHistory";
+import GoalsProgress from "@/components/GoalsProgress";
+import ReportGenerator from "@/components/ReportGenerator";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
@@ -171,9 +173,10 @@ const Dashboard = () => {
                 </Button>
               </>
             )}
+            <ReportGenerator records={records} personName={personName} isMale={isReneer} />
             <Button variant="outline" className="gap-2" onClick={exportToCSV}>
               <Download className="w-4 h-4" />
-              Exportar CSV
+              CSV
             </Button>
           </div>
         </div>
@@ -328,6 +331,31 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Goals Progress */}
+        {records.length > 0 && (
+          <div className="mb-8">
+            <GoalsProgress 
+              userPerson={person || ""} 
+              currentMetrics={{
+                weight: records[records.length - 1].weight,
+                body_fat_percent: records[records.length - 1].body_fat_percent,
+                muscle_rate_percent: records[records.length - 1].muscle_rate_percent,
+                visceral_fat: records[records.length - 1].visceral_fat,
+                bmi: records[records.length - 1].bmi
+              }}
+              initialMetrics={{
+                weight: records[0].weight,
+                body_fat_percent: records[0].body_fat_percent,
+                muscle_rate_percent: records[0].muscle_rate_percent,
+                visceral_fat: records[0].visceral_fat,
+                bmi: records[0].bmi
+              }}
+              isAdmin={isAdmin}
+              isMale={isReneer}
+            />
+          </div>
+        )}
 
         {/* Tabs for Data, Protocol and AI History */}
         <Tabs defaultValue="dados" className="w-full">
