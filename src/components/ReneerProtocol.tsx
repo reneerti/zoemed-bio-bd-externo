@@ -1,14 +1,36 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2 } from "lucide-react";
 import SupplementationCard from "./SupplementationCard";
 
 interface ReneerProtocolProps {
   isAdmin?: boolean;
+  onGenerateAnalysis?: () => void;
+  isGeneratingAnalysis?: boolean;
 }
 
-const ReneerProtocol = ({ isAdmin = false }: ReneerProtocolProps) => {
+const ReneerProtocol = ({ isAdmin = false, onGenerateAnalysis, isGeneratingAnalysis = false }: ReneerProtocolProps) => {
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Botão de Análise IA */}
+      {onGenerateAnalysis && (
+        <div className="flex justify-end">
+          <Button
+            onClick={onGenerateAnalysis}
+            disabled={isGeneratingAnalysis}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          >
+            {isGeneratingAnalysis ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingAnalysis ? "Gerando Análise..." : "Gerar Análise IA"}
+          </Button>
+        </div>
+      )}
+
       {/* Resumo do Protocolo */}
       <Card className="card-elevated border-0 border-l-4 border-l-blue-500">
         <CardHeader>

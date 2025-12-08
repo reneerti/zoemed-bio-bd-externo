@@ -427,7 +427,19 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="protocolo">
-            {isReneer ? <ReneerProtocol isAdmin={isAdmin} /> : <AnaPaulaProtocol isAdmin={isAdmin} />}
+            {isReneer ? (
+              <ReneerProtocol 
+                isAdmin={isAdmin} 
+                onGenerateAnalysis={generateAnalysis}
+                isGeneratingAnalysis={analyzing}
+              />
+            ) : (
+              <AnaPaulaProtocol 
+                isAdmin={isAdmin} 
+                onGenerateAnalysis={generateAnalysis}
+                isGeneratingAnalysis={analyzing}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="analises">
