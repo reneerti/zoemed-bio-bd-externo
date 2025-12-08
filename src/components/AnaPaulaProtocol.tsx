@@ -1,14 +1,36 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2 } from "lucide-react";
 import SupplementationCard from "./SupplementationCard";
 
 interface AnaPaulaProtocolProps {
   isAdmin?: boolean;
+  onGenerateAnalysis?: () => void;
+  isGeneratingAnalysis?: boolean;
 }
 
-const AnaPaulaProtocol = ({ isAdmin = false }: AnaPaulaProtocolProps) => {
+const AnaPaulaProtocol = ({ isAdmin = false, onGenerateAnalysis, isGeneratingAnalysis = false }: AnaPaulaProtocolProps) => {
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Botão de Análise IA */}
+      {onGenerateAnalysis && (
+        <div className="flex justify-end">
+          <Button
+            onClick={onGenerateAnalysis}
+            disabled={isGeneratingAnalysis}
+            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700"
+          >
+            {isGeneratingAnalysis ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            {isGeneratingAnalysis ? "Gerando Análise..." : "Gerar Análise IA"}
+          </Button>
+        </div>
+      )}
+
       {/* Diagnóstico */}
       <Card className="card-elevated border-0 border-l-4 border-l-warning">
         <CardHeader>
