@@ -261,17 +261,21 @@ const Dashboard = () => {
           ];
 
           return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8 animate-slide-up">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-8 animate-slide-up">
               {summaryItems.map((item, i) => (
-                <Card key={i} className={`card-elevated border-0 ${item.bg} shadow-lg overflow-hidden`}>
-                  <CardContent className="p-3 text-center relative">
-                    <p className={`text-[10px] uppercase tracking-wide mb-0.5 ${item.textColor ? item.textColor + '/70' : 'text-white/70'}`}>{item.label}</p>
-                    <p className={`text-xl font-serif font-bold leading-tight ${item.textColor || 'text-white'}`}>{item.value}</p>
-                    <span className={`text-[10px] font-medium ${item.performance.color}`}>
+                <Card key={i} className={`card-elevated border-0 ${item.bg} shadow-lg overflow-hidden min-w-0`}>
+                  <CardContent className="p-2 md:p-3 text-center relative overflow-hidden">
+                    <p className={`text-[9px] md:text-[10px] uppercase tracking-wide mb-0.5 truncate ${item.textColor ? item.textColor + '/70' : 'text-white/70'}`}>
+                      {item.label}
+                    </p>
+                    <p className={`text-base md:text-xl font-serif font-bold leading-tight truncate ${item.textColor || 'text-white'}`}>
+                      {item.value}
+                    </p>
+                    <span className={`text-[9px] md:text-[10px] font-medium block truncate ${item.performance.color}`}>
                       {item.performance.icon} {item.performance.percent}
                     </span>
                     {item.sparkData.length > 1 && (
-                      <div className="h-8 mt-1 -mx-3 -mb-3">
+                      <div className="h-6 md:h-8 mt-1 -mx-2 md:-mx-3 -mb-2 md:-mb-3">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={item.sparkData}>
                             <Line 
