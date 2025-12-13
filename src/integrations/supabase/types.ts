@@ -22,6 +22,7 @@ export type Database = {
           fat_at_analysis: number | null
           full_analysis: string
           id: string
+          patient_id: string | null
           summary: string
           user_person: string
           weight_at_analysis: number | null
@@ -33,6 +34,7 @@ export type Database = {
           fat_at_analysis?: number | null
           full_analysis: string
           id?: string
+          patient_id?: string | null
           summary: string
           user_person: string
           weight_at_analysis?: number | null
@@ -44,11 +46,20 @@ export type Database = {
           fat_at_analysis?: number | null
           full_analysis?: string
           id?: string
+          patient_id?: string | null
           summary?: string
           user_person?: string
           weight_at_analysis?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_history_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bioimpedance: {
         Row: {
@@ -237,6 +248,7 @@ export type Database = {
           new_value: number | null
           notification_type: string
           old_value: number | null
+          patient_id: string | null
           title: string
           user_person: string
         }
@@ -251,6 +263,7 @@ export type Database = {
           new_value?: number | null
           notification_type: string
           old_value?: number | null
+          patient_id?: string | null
           title: string
           user_person: string
         }
@@ -265,10 +278,19 @@ export type Database = {
           new_value?: number | null
           notification_type?: string
           old_value?: number | null
+          patient_id?: string | null
           title?: string
           user_person?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patient_scores: {
         Row: {
@@ -383,6 +405,7 @@ export type Database = {
           dosage: string
           id: string
           notes: string | null
+          patient_id: string | null
           supplement_name: string
           updated_at: string
           user_person: string
@@ -392,6 +415,7 @@ export type Database = {
           dosage: string
           id?: string
           notes?: string | null
+          patient_id?: string | null
           supplement_name: string
           updated_at?: string
           user_person: string
@@ -401,17 +425,27 @@ export type Database = {
           dosage?: string
           id?: string
           notes?: string | null
+          patient_id?: string | null
           supplement_name?: string
           updated_at?: string
           user_person?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supplementation_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_goals: {
         Row: {
           created_at: string
           id: string
           notes: string | null
+          patient_id: string | null
           target_bmi: number | null
           target_body_fat: number | null
           target_muscle: number | null
@@ -424,6 +458,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          patient_id?: string | null
           target_bmi?: number | null
           target_body_fat?: number | null
           target_muscle?: number | null
@@ -436,6 +471,7 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          patient_id?: string | null
           target_bmi?: number | null
           target_body_fat?: number | null
           target_muscle?: number | null
@@ -444,7 +480,15 @@ export type Database = {
           updated_at?: string
           user_person?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_goals_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {
@@ -452,6 +496,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          patient_id: string | null
           updated_at: string
           user_person: string
         }
@@ -460,6 +505,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          patient_id?: string | null
           updated_at?: string
           user_person: string
         }
@@ -468,10 +514,19 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          patient_id?: string | null
           updated_at?: string
           user_person?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -520,6 +575,7 @@ export type Database = {
         Returns: boolean
       }
       is_master: { Args: { _user_id: string }; Returns: boolean }
+      migrate_user_person_to_patient_id: { Args: never; Returns: undefined }
       update_leaderboard_rankings: { Args: never; Returns: undefined }
     }
     Enums: {
