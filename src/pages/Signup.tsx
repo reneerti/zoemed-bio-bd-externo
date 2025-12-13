@@ -10,6 +10,46 @@ import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import splashLogo from "@/assets/zoemedbio-splash-logo.png";
+import { z } from "zod";
+
+// Zod validation schema
+const signupSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(2, "Nome deve ter pelo menos 2 caracteres")
+    .max(100, "Nome deve ter no máximo 100 caracteres")
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Nome contém caracteres inválidos"),
+  email: z.string()
+    .trim()
+    .email("Email inválido")
+    .max(255, "Email deve ter no máximo 255 caracteres"),
+  password: z.string()
+    .min(6, "Senha deve ter pelo menos 6 caracteres")
+    .max(128, "Senha deve ter no máximo 128 caracteres"),
+  confirmPassword: z.string(),
+  phone: z.string()
+    .regex(/^[\d\s\-()+ ]*$/, "Telefone contém caracteres inválidos")
+    .max(20, "Telefone deve ter no máximo 20 caracteres")
+    .optional()
+    .or(z.literal("")),
+  gender: z.enum(["male", "female", "other"]).optional().or(z.literal("")),
+  birthDate: z.string().optional().or(z.literal("")),
+  height: z.string()
+    .optional()
+    .or(z.literal(""))
+    .transform((val) => val === "" ? undefined : val)
+    .pipe(
+      z.union([
+        z.undefined(),
+        z.coerce.number().min(50, "Altura mínima: 50cm").max(300, "Altura máxima: 300cm")
+      ])
+    ),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
+});
+
+type SignupFormData = z.infer<typeof signupSchema>;
 
 const Signup = () => {
   const [name, setName] = useState("");
@@ -22,31 +62,43 @@ const Signup = () => {
   const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     
-    if (!name || !email || !password) {
-      toast.error("Preencha os campos obrigatórios");
+    // Validate with zod
+    const validationResult = signupSchema.safeParse({
+      name,
+      email,
+      password,
+      confirmPassword,
+      phone,
+      gender,
+      birthDate,
+      height,
+    });
+
+    if (!validationResult.success) {
+      const fieldErrors: Record<string, string> = {};
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      toast.error(validationResult.error.errors[0].message);
       return;
     }
 
-    if (password !== confirmPassword) {
-      toast.error("As senhas não coincidem");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres");
-      return;
-    }
-
+    const validData = validationResult.data;
     setIsLoading(true);
 
     try {
-      const result = await signUp(email, password);
+      const result = await signUp(validData.email, validData.password);
       
       if (result.error) {
         if (result.error.message.includes("already registered")) {
@@ -59,18 +111,18 @@ const Signup = () => {
 
       const data = result.data;
 
-      // Create patient record
+      // Create patient record with validated data
       if (data?.user) {
         const { error: patientError } = await supabase
           .from("patients")
           .insert({
             user_id: data.user.id,
-            name,
-            email,
-            phone: phone || null,
-            gender: gender || null,
-            birth_date: birthDate || null,
-            height: height ? parseFloat(height) : null,
+            name: validData.name,
+            email: validData.email,
+            phone: validData.phone || null,
+            gender: validData.gender || null,
+            birth_date: validData.birthDate || null,
+            height: typeof validData.height === 'number' ? validData.height : null,
             status: "active"
           });
 
@@ -127,9 +179,11 @@ const Signup = () => {
                   placeholder="Seu nome"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="h-12 rounded-xl"
+                  className={`h-12 rounded-xl ${errors.name ? 'border-destructive' : ''}`}
+                  maxLength={100}
                   required
                 />
+                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
 
               <div className="space-y-2">
@@ -140,9 +194,11 @@ const Signup = () => {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 rounded-xl"
+                  className={`h-12 rounded-xl ${errors.email ? 'border-destructive' : ''}`}
+                  maxLength={255}
                   required
                 />
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -155,9 +211,10 @@ const Signup = () => {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="h-12 rounded-xl pr-10"
+                      className={`h-12 rounded-xl pr-10 ${errors.password ? 'border-destructive' : ''}`}
                       required
                       minLength={6}
+                      maxLength={128}
                     />
                     <button
                       type="button"
@@ -167,6 +224,7 @@ const Signup = () => {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar *</Label>
@@ -176,10 +234,12 @@ const Signup = () => {
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="h-12 rounded-xl"
+                    className={`h-12 rounded-xl ${errors.confirmPassword ? 'border-destructive' : ''}`}
                     required
                     minLength={6}
+                    maxLength={128}
                   />
+                  {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
                 </div>
               </div>
 
@@ -218,10 +278,11 @@ const Signup = () => {
                     placeholder="170"
                     value={height}
                     onChange={(e) => setHeight(e.target.value)}
-                    className="h-12 rounded-xl"
-                    min="100"
-                    max="250"
+                    className={`h-12 rounded-xl ${errors.height ? 'border-destructive' : ''}`}
+                    min="50"
+                    max="300"
                   />
+                  {errors.height && <p className="text-xs text-destructive">{errors.height}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefone</Label>
@@ -231,8 +292,10 @@ const Signup = () => {
                     placeholder="(11) 99999-9999"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="h-12 rounded-xl"
+                    className={`h-12 rounded-xl ${errors.phone ? 'border-destructive' : ''}`}
+                    maxLength={20}
                   />
+                  {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                 </div>
               </div>
 

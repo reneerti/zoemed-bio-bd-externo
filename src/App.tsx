@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import SplashScreen from "@/components/SplashScreen";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import SelectUser from "./pages/SelectUser";
@@ -57,16 +58,50 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <Routes>
+                  {/* Public routes */}
                   <Route path="/" element={<Login />} />
                   <Route path="/cadastro" element={<Signup />} />
-                  <Route path="/selecionar" element={<SelectUser />} />
-                  <Route path="/dashboard/:person" element={<Dashboard />} />
-                  <Route path="/adicionar" element={<AddMeasurement />} />
-                  <Route path="/upload" element={<Upload />} />
                   <Route path="/instalar" element={<Install />} />
-                  <Route path="/master" element={<MasterDashboard />} />
-                  <Route path="/paciente/:patientId" element={<PatientDashboard />} />
-                  <Route path="/adicionar-medida/:patientId" element={<AddPatientMeasurement />} />
+                  
+                  {/* Protected routes - require authentication */}
+                  <Route path="/selecionar" element={
+                    <ProtectedRoute>
+                      <SelectUser />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/:person" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/adicionar" element={
+                    <ProtectedRoute>
+                      <AddMeasurement />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/upload" element={
+                    <ProtectedRoute>
+                      <Upload />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/paciente/:patientId" element={
+                    <ProtectedRoute>
+                      <PatientDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/adicionar-medida/:patientId" element={
+                    <ProtectedRoute>
+                      <AddPatientMeasurement />
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Admin-only routes */}
+                  <Route path="/master" element={
+                    <ProtectedRoute requireAdmin>
+                      <MasterDashboard />
+                    </ProtectedRoute>
+                  } />
+                  
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
