@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { 
   Users, Activity, Settings, BarChart3, 
-  ArrowLeft, LogOut, TrendingUp, TrendingDown
+  ArrowLeft, LogOut, TrendingUp, TrendingDown, RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -54,6 +54,7 @@ const MasterDashboard = () => {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -150,6 +151,38 @@ const MasterDashboard = () => {
     navigate("/");
   };
 
+  const handleForceRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Clear any cached data in localStorage
+      const keysToPreserve = ['sb-xrqtjblsglcdrfwzcbit-auth-token'];
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (!keysToPreserve.some(preserve => key.includes(preserve))) {
+          // Keep auth tokens, clear other caches
+          if (key.includes('cache') || key.includes('Cache')) {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+
+      // Clear session storage caches
+      sessionStorage.clear();
+
+      // Reload all data from database
+      await loadData();
+
+      toast.success("Dados atualizados com sucesso!", {
+        description: "Cache limpo e dados recarregados do servidor",
+      });
+    } catch (error) {
+      console.error("Error refreshing:", error);
+      toast.error("Erro ao atualizar dados");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
   const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     patient.email?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -178,6 +211,16 @@ const MasterDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleForceRefresh}
+                disabled={isRefreshing}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Atualizando...' : 'Atualizar'}
+              </Button>
               <PdfReportGenerator patients={patients} />
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />

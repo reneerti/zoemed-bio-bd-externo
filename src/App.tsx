@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import SplashScreen from "@/components/SplashScreen";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import UpdateNotification from "@/components/UpdateNotification";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import SelectUser from "./pages/SelectUser";
@@ -57,6 +58,7 @@ const App = () => {
             <>
               <Toaster />
               <Sonner />
+              <UpdateNotification />
               <BrowserRouter>
                 <Routes>
                   {/* Public routes */}
