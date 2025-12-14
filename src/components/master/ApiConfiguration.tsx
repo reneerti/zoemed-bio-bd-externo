@@ -14,9 +14,18 @@ import {
   Database, Key, Cpu, Eye, EyeOff, Save, RefreshCw, 
   Zap, Server, Activity, AlertCircle, CheckCircle2, 
   Cloud, Plug, User, BarChart3, Users, TrendingUp, Calendar,
-  Bell, DollarSign, ExternalLink, Globe, Info
+  Bell, DollarSign, ExternalLink, Globe, Info, Plus, Trash2, Edit, Shield, Lock
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -71,11 +80,32 @@ interface DatabaseConfig {
   supabaseKey: string;
 }
 
-interface ApiKeys {
-  lovable_api_key: string;
-  google_vision_key: string;
-  openai_key: string;
+interface ApiKeyConfig {
+  id: string;
+  config_key: string;
+  config_value: string | null;
+  provider: string | null;
+  is_active: boolean;
+  priority: number;
+  has_value?: boolean;
 }
+
+interface NewApiKey {
+  config_key: string;
+  config_value: string;
+  provider: string;
+  display_name: string;
+}
+
+const PROVIDER_OPTIONS = [
+  { value: "lovable", label: "Lovable Gateway", icon: Zap, color: "text-primary" },
+  { value: "google", label: "Google (Vision/Gemini)", icon: Cpu, color: "text-blue-500" },
+  { value: "openai", label: "OpenAI (GPT)", icon: Zap, color: "text-green-500" },
+  { value: "anthropic", label: "Anthropic (Claude)", icon: Zap, color: "text-orange-500" },
+  { value: "ocr", label: "OCR Service", icon: Eye, color: "text-purple-500" },
+  { value: "ai", label: "AI Model", icon: Cpu, color: "text-yellow-500" },
+  { value: "custom", label: "Custom/Outro", icon: Key, color: "text-muted-foreground" },
+];
 
 const ApiConfiguration = () => {
   const [configs, setConfigs] = useState<ApiConfig[]>([]);
@@ -108,11 +138,17 @@ const ApiConfiguration = () => {
     supabaseKey: "",
   });
 
-  const [apiKeys, setApiKeys] = useState<ApiKeys>({
-    lovable_api_key: "",
-    google_vision_key: "",
-    openai_key: "",
+  // API Keys management
+  const [apiKeyConfigs, setApiKeyConfigs] = useState<ApiKeyConfig[]>([]);
+  const [showNewKeyDialog, setShowNewKeyDialog] = useState(false);
+  const [editingKey, setEditingKey] = useState<ApiKeyConfig | null>(null);
+  const [newKeyData, setNewKeyData] = useState<NewApiKey>({
+    config_key: "",
+    config_value: "",
+    provider: "custom",
+    display_name: ""
   });
+  const [savingKey, setSavingKey] = useState(false);
 
   const CHART_COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(217 91% 60%)", "hsl(45 93% 47%)", "hsl(0 84% 60%)"];
 
@@ -122,6 +158,7 @@ const ApiConfiguration = () => {
     fetchPatientUsage();
     fetchDailyUsage();
     checkDbConnection();
+    fetchApiKeys();
   }, []);
 
   // Filter daily usage based on period
@@ -188,12 +225,6 @@ const ApiConfiguration = () => {
         password: dbPassConfig?.config_value || "",
         supabaseUrl: supabaseUrlConfig?.config_value || dbUrlConfig?.config_value || "",
         supabaseKey: supabaseKeyConfig?.config_value || "",
-      });
-
-      setApiKeys({
-        lovable_api_key: lovableKeyConfig?.config_value || "",
-        google_vision_key: googleVisionKeyConfig?.config_value || "",
-        openai_key: openaiKeyConfig?.config_value || "",
       });
     } catch (error) {
       console.error("Error fetching configs:", error);
@@ -331,6 +362,142 @@ const ApiConfiguration = () => {
     }
   };
 
+  const fetchApiKeys = async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ action: "list" }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        setApiKeyConfigs(result.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching API keys:", error);
+    }
+  };
+
+  const handleSaveApiKey = async (id: string, newValue: string) => {
+    setSavingKey(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ 
+            action: "update", 
+            data: { id, config_value: newValue }
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Chave API salva com criptografia!");
+        await fetchApiKeys();
+        setEditingKey(null);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error saving API key:", error);
+      toast.error("Erro ao salvar chave API");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const handleCreateApiKey = async () => {
+    if (!newKeyData.config_key || !newKeyData.provider) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    setSavingKey(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ 
+            action: "create", 
+            data: newKeyData 
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Nova chave API criada com sucesso!");
+        await fetchApiKeys();
+        setShowNewKeyDialog(false);
+        setNewKeyData({ config_key: "", config_value: "", provider: "custom", display_name: "" });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error creating API key:", error);
+      toast.error("Erro ao criar chave API");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const handleDeleteApiKey = async (id: string) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ action: "delete", data: { id } }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Chave API removida!");
+        await fetchApiKeys();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error deleting API key:", error);
+      toast.error("Erro ao remover chave API");
+    }
+  };
+
   const updateConfig = (id: string, field: keyof ApiConfig, value: any) => {
     setConfigs(prev => 
       prev.map(c => c.id === id ? { ...c, [field]: value } : c)
@@ -363,11 +530,6 @@ const ApiConfiguration = () => {
       await upsertConfig("database_password", dbConfig.password, "database");
       await upsertConfig("supabase_url", dbConfig.supabaseUrl, "supabase");
       await upsertConfig("supabase_anon_key", dbConfig.supabaseKey, "supabase");
-
-      // Save API keys
-      await upsertConfig("lovable_api_key", apiKeys.lovable_api_key, "lovable");
-      await upsertConfig("google_vision_api_key", apiKeys.google_vision_key, "google");
-      await upsertConfig("openai_api_key", apiKeys.openai_key, "openai");
 
       // Save OCR and AI provider configs
       for (const config of configs) {
@@ -844,110 +1006,195 @@ const ApiConfiguration = () => {
         <TabsContent value="api-keys">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-yellow-500" />
-                <CardTitle className="text-lg">Chaves de API</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-yellow-500" />
+                  <CardTitle className="text-lg">Chaves de API</CardTitle>
+                </div>
+                <Dialog open={showNewKeyDialog} onOpenChange={setShowNewKeyDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      Nova Chave
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-primary" />
+                        Criar Nova Chave de API
+                      </DialogTitle>
+                      <DialogDescription>
+                        As chaves serão armazenadas com criptografia no banco de dados.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Nome da Chave (config_key)</Label>
+                        <Input
+                          value={newKeyData.config_key}
+                          onChange={(e) => setNewKeyData(prev => ({ ...prev, config_key: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
+                          placeholder="ex: my_custom_api_key"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Provedor</Label>
+                        <Select
+                          value={newKeyData.provider}
+                          onValueChange={(v) => setNewKeyData(prev => ({ ...prev, provider: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o provedor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PROVIDER_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                <div className="flex items-center gap-2">
+                                  <opt.icon className={`w-4 h-4 ${opt.color}`} />
+                                  {opt.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Valor da Chave</Label>
+                        <div className="relative">
+                          <Input
+                            type={showSecrets["new_key"] ? "text" : "password"}
+                            value={newKeyData.config_value}
+                            onChange={(e) => setNewKeyData(prev => ({ ...prev, config_value: e.target.value }))}
+                            placeholder="Cole a chave API aqui..."
+                            className="pr-10 font-mono"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => toggleShowSecret("new_key")}
+                          >
+                            {showSecrets["new_key"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          A chave será criptografada antes de ser salva
+                        </p>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowNewKeyDialog(false)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleCreateApiKey} disabled={savingKey} className="gap-2">
+                        {savingKey ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                        Criar com Criptografia
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
               <CardDescription>
-                Configure as chaves de API para os serviços de OCR e IA.
+                Configure as chaves de API para os serviços de OCR e IA. Todas as chaves são armazenadas com criptografia.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Lovable API Key */}
-              <div className="p-4 bg-muted/30 rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-primary" />
-                    <Label className="font-medium">Lovable Gateway API</Label>
-                  </div>
-                  <Badge variant="default">Recomendado</Badge>
+            <CardContent className="space-y-4">
+              {apiKeyConfigs.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Key className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma chave de API configurada</p>
+                  <p className="text-xs mt-1">Clique em "Nova Chave" para adicionar</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Acesso ao Gemini Vision e modelos de IA via Lovable Gateway. Chave gerenciada automaticamente.
-                </p>
-                <div className="relative">
-                  <Input
-                    type={showSecrets["lovable_api_key"] ? "text" : "password"}
-                    value={apiKeys.lovable_api_key}
-                    onChange={(e) => setApiKeys(prev => ({ ...prev, lovable_api_key: e.target.value }))}
-                    placeholder="Deixe vazio para usar a chave padrão do sistema"
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleShowSecret("lovable_api_key")}
-                  >
-                    {showSecrets["lovable_api_key"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
+              ) : (
+                apiKeyConfigs.map((keyConfig) => {
+                  const providerInfo = PROVIDER_OPTIONS.find(p => p.value === keyConfig.provider) || PROVIDER_OPTIONS[PROVIDER_OPTIONS.length - 1];
+                  const IconComponent = providerInfo.icon;
+                  const isEditing = editingKey?.id === keyConfig.id;
 
-              {/* Google Vision API Key */}
-              <div className="p-4 bg-muted/30 rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="w-5 h-5 text-blue-500" />
-                    <Label className="font-medium">Google Vision API</Label>
-                  </div>
-                  <Badge variant="secondary">OCR Alternativo</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Use como fallback de OCR. Obtenha em console.cloud.google.com
-                </p>
-                <div className="relative">
-                  <Input
-                    type={showSecrets["google_vision_key"] ? "text" : "password"}
-                    value={apiKeys.google_vision_key}
-                    onChange={(e) => setApiKeys(prev => ({ ...prev, google_vision_key: e.target.value }))}
-                    placeholder="AIzaSy..."
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleShowSecret("google_vision_key")}
-                  >
-                    {showSecrets["google_vision_key"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              {/* OpenAI API Key */}
-              <div className="p-4 bg-muted/30 rounded-xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-green-500" />
-                    <Label className="font-medium">OpenAI API</Label>
-                  </div>
-                  <Badge variant="outline">Opcional</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Para usar modelos GPT como alternativa. Obtenha em platform.openai.com
-                </p>
-                <div className="relative">
-                  <Input
-                    type={showSecrets["openai_key"] ? "text" : "password"}
-                    value={apiKeys.openai_key}
-                    onChange={(e) => setApiKeys(prev => ({ ...prev, openai_key: e.target.value }))}
-                    placeholder="sk-..."
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => toggleShowSecret("openai_key")}
-                  >
-                    {showSecrets["openai_key"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
+                  return (
+                    <div key={keyConfig.id} className="p-4 bg-muted/30 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <IconComponent className={`w-5 h-5 ${providerInfo.color}`} />
+                          <Label className="font-medium">{keyConfig.config_key}</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={keyConfig.is_active ? "default" : "secondary"}>
+                            {keyConfig.is_active ? "Ativo" : "Inativo"}
+                          </Badge>
+                          <Badge variant="outline" className="gap-1">
+                            <Lock className="w-3 h-3" />
+                            Criptografado
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                          {isEditing ? (
+                            <Input
+                              type={showSecrets[keyConfig.id] ? "text" : "password"}
+                              placeholder="Digite o novo valor da chave..."
+                              className="pr-10 font-mono"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSaveApiKey(keyConfig.id, (e.target as HTMLInputElement).value);
+                                } else if (e.key === "Escape") {
+                                  setEditingKey(null);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-background rounded-lg border">
+                              <code className="text-sm font-mono flex-1">
+                                {keyConfig.has_value ? keyConfig.config_value : "(não configurado)"}
+                              </code>
+                              {keyConfig.has_value && (
+                                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            if (isEditing) {
+                              setEditingKey(null);
+                            } else {
+                              setEditingKey(keyConfig);
+                            }
+                          }}
+                        >
+                          {isEditing ? <EyeOff className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => {
+                            if (confirm(`Remover a chave "${keyConfig.config_key}"?`)) {
+                              handleDeleteApiKey(keyConfig.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Provedor: {providerInfo.label}</span>
+                        <span>Prioridade: {keyConfig.priority}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
         </TabsContent>
