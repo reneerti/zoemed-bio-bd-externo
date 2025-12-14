@@ -30,6 +30,8 @@ interface Patient {
   latestWeight?: number;
   latestBmi?: number;
   weightChange?: number;
+  score?: number;
+  criticality?: string;
 }
 
 interface DashboardStats {
@@ -83,6 +85,13 @@ const MasterDashboard = () => {
 
       if (bioError) throw bioError;
 
+      // Load patient scores
+      const { data: scoresData, error: scoresError } = await supabase
+        .from("patient_scores")
+        .select("patient_id, score, criticality");
+
+      if (scoresError) console.error("Error loading scores:", scoresError);
+
       const patientsWithStats = (patientsData || []).map(patient => {
         const patientBio = bioData?.filter(b => b.patient_id === patient.id) || [];
         const latestWeight = patientBio[0]?.weight;
@@ -96,11 +105,16 @@ const MasterDashboard = () => {
           }
         }
 
+        // Add score data
+        const scoreData = scoresData?.find(s => s.patient_id === patient.id);
+
         return {
           ...patient,
           latestWeight,
           latestBmi,
-          weightChange
+          weightChange,
+          score: scoreData?.score,
+          criticality: scoreData?.criticality
         };
       });
 

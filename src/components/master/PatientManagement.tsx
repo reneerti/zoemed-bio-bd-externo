@@ -54,6 +54,8 @@ interface Patient {
   birth_date?: string;
   height?: number;
   medical_notes?: string;
+  score?: number;
+  criticality?: string;
 }
 
 interface PatientManagementProps {
@@ -496,10 +498,23 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
           </div>
         ) : (
           <div className="grid gap-4">
-            {filteredPatients.map((patient) => (
+            {filteredPatients.map((patient) => {
+              // Get subtle background color based on criticality
+              const getCriticalityBgClass = (criticality?: string) => {
+                switch (criticality) {
+                  case "healthy": return "border-l-4 border-l-green-500 bg-green-500/5";
+                  case "normal": return "border-l-4 border-l-blue-500 bg-blue-500/5";
+                  case "attention": return "border-l-4 border-l-yellow-500 bg-yellow-500/5";
+                  case "critical": return "border-l-4 border-l-red-500 bg-red-500/5";
+                  default: return "border-l-4 border-l-muted";
+                }
+              };
+
+              return (
               <div
                 key={patient.id}
-                className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors"
+                className={`flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer ${getCriticalityBgClass(patient.criticality)}`}
+                onClick={() => navigate(`/master/paciente/${patient.id}`)}
               >
                 <div className="flex items-center gap-4">
                   <Avatar className="w-12 h-12">
@@ -520,6 +535,11 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                           Com login
                         </Badge>
                       )}
+                      {patient.score !== undefined && (
+                        <Badge variant="outline" className="text-xs">
+                          Score: {patient.score.toFixed(0)}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {patient.email || "Sem email"}
@@ -527,7 +547,7 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-6" onClick={(e) => e.stopPropagation()}>
                   {patient.latestWeight && (
                     <div className="text-right hidden md:block">
                       <p className="text-sm text-muted-foreground">Peso Atual</p>
@@ -605,7 +625,8 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                   </DropdownMenu>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

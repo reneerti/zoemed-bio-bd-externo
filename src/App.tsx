@@ -17,6 +17,7 @@ import Upload from "./pages/Upload";
 import Install from "./pages/Install";
 import MasterDashboard from "./pages/MasterDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
+import PatientDetails from "./pages/PatientDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -99,6 +100,11 @@ const App = () => {
                   <Route path="/master" element={
                     <ProtectedRoute requireAdmin>
                       <MasterDashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/master/paciente/:patientId" element={
+                    <ProtectedRoute requireAdmin>
+                      <PatientDetails />
                     </ProtectedRoute>
                   } />
                   
