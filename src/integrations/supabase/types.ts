@@ -61,6 +61,86 @@ export type Database = {
           },
         ]
       }
+      api_configurations: {
+        Row: {
+          config_key: string
+          config_value: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          provider: string | null
+          updated_at: string
+        }
+        Insert: {
+          config_key: string
+          config_value?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          provider?: string | null
+          updated_at?: string
+        }
+        Update: {
+          config_key?: string
+          config_value?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          provider?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      api_usage_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          estimated_cost: number | null
+          id: string
+          operation_type: string
+          patient_id: string | null
+          provider: string
+          request_duration_ms: number | null
+          success: boolean | null
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          estimated_cost?: number | null
+          id?: string
+          operation_type: string
+          patient_id?: string | null
+          provider: string
+          request_duration_ms?: number | null
+          success?: boolean | null
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          estimated_cost?: number | null
+          id?: string
+          operation_type?: string
+          patient_id?: string | null
+          provider?: string
+          request_duration_ms?: number | null
+          success?: boolean | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_logs_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bioimpedance: {
         Row: {
           bmi: number | null
@@ -398,6 +478,53 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      raw_ocr_extractions: {
+        Row: {
+          ai_processed: boolean | null
+          created_at: string
+          extraction_method: string | null
+          extraction_status: string | null
+          id: string
+          image_url: string | null
+          parsed_data: Json | null
+          patient_id: string | null
+          processing_notes: string | null
+          raw_text: string | null
+        }
+        Insert: {
+          ai_processed?: boolean | null
+          created_at?: string
+          extraction_method?: string | null
+          extraction_status?: string | null
+          id?: string
+          image_url?: string | null
+          parsed_data?: Json | null
+          patient_id?: string | null
+          processing_notes?: string | null
+          raw_text?: string | null
+        }
+        Update: {
+          ai_processed?: boolean | null
+          created_at?: string
+          extraction_method?: string | null
+          extraction_status?: string | null
+          id?: string
+          image_url?: string | null
+          parsed_data?: Json | null
+          patient_id?: string | null
+          processing_notes?: string | null
+          raw_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_ocr_extractions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       supplementation: {
         Row: {

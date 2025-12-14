@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Users, Activity, Settings, BarChart3, 
-  ArrowLeft, LogOut, TrendingUp, TrendingDown, RefreshCw, Clock
+  ArrowLeft, LogOut, TrendingUp, TrendingDown, RefreshCw, Clock, Cpu
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -18,6 +18,7 @@ import MasterReports from "@/components/master/MasterReports";
 import CustomFieldsConfig from "@/components/master/CustomFieldsConfig";
 import GamificationDashboard from "@/components/master/GamificationDashboard";
 import PdfReportGenerator from "@/components/master/PdfReportGenerator";
+import ApiConfiguration from "@/components/master/ApiConfiguration";
 import splashLogo from "@/assets/zoemedbio-splash-logo.png";
 import { BUILD_TIME } from "@/lib/buildInfo";
 
@@ -294,7 +295,7 @@ const MasterDashboard = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="patients" className="space-y-4">
-          <TabsList className="bg-card border">
+          <TabsList className="bg-card border flex-wrap">
             <TabsTrigger value="patients" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Pacientes
@@ -306,6 +307,10 @@ const MasterDashboard = () => {
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Relatórios
+            </TabsTrigger>
+            <TabsTrigger value="api" className="flex items-center gap-2">
+              <Cpu className="w-4 h-4" />
+              API
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -328,6 +333,10 @@ const MasterDashboard = () => {
 
           <TabsContent value="reports">
             <MasterReports patients={patients} />
+          </TabsContent>
+
+          <TabsContent value="api">
+            <ApiConfiguration />
           </TabsContent>
 
           <TabsContent value="settings">
