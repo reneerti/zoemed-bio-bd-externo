@@ -14,6 +14,7 @@ import anaPaulaAvatar from "@/assets/ana-paula-avatar.png";
 import splashLogo from "@/assets/zoemedbio-splash-logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { getPatientIdFromUserPerson } from "@/hooks/usePatientId";
 
 interface UserSummary {
   name: string;
@@ -63,14 +64,18 @@ const SelectUser = () => {
 
   const loadProfiles = async () => {
     try {
+      const reneerPatientId = getPatientIdFromUserPerson("reneer");
+      const anaPaulaPatientId = getPatientIdFromUserPerson("ana_paula");
+
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("*");
+        .select("*")
+        .or(`patient_id.eq.${reneerPatientId},patient_id.eq.${anaPaulaPatientId}`);
       
       if (error) throw error;
       
-      const reneerProfile = data?.find(p => p.user_person === 'reneer') || null;
-      const anaPaulaProfile = data?.find(p => p.user_person === 'ana_paula') || null;
+      const reneerProfile = data?.find(p => p.patient_id === reneerPatientId || p.user_person === 'reneer') || null;
+      const anaPaulaProfile = data?.find(p => p.patient_id === anaPaulaPatientId || p.user_person === 'ana_paula') || null;
       
       setProfiles({
         reneer: reneerProfile,
@@ -98,10 +103,12 @@ const SelectUser = () => {
         .from('bioimpedance-images')
         .getPublicUrl(filePath);
 
+      const patientId = getPatientIdFromUserPerson(person);
+      
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({ avatar_url: urlData.publicUrl })
-        .eq('user_person', person);
+        .eq('patient_id', patientId);
 
       if (updateError) throw updateError;
 
@@ -117,16 +124,19 @@ const SelectUser = () => {
 
   const loadData = async () => {
     try {
+      const reneerPatientId = getPatientIdFromUserPerson("reneer");
+      const anaPaulaPatientId = getPatientIdFromUserPerson("ana_paula");
+
       const { data: reneerRecords } = await supabase
         .from("bioimpedance")
         .select("*")
-        .eq("user_person", "reneer")
+        .eq("patient_id", reneerPatientId)
         .order("measurement_date", { ascending: true });
 
       const { data: anaPaulaRecords } = await supabase
         .from("bioimpedance")
         .select("*")
-        .eq("user_person", "ana_paula")
+        .eq("patient_id", anaPaulaPatientId)
         .order("measurement_date", { ascending: true });
 
       if (reneerRecords && reneerRecords.length > 0) {

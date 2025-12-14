@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload as UploadIcon, FileImage, Loader2, Sparkles, CheckCircle, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getPatientIdFromUserPerson } from "@/hooks/usePatientId";
 
 const Upload = () => {
   const navigate = useNavigate();
@@ -54,9 +55,11 @@ const Upload = () => {
         .getPublicUrl(fileName);
 
       // Call OCR edge function
+      const patientId = getPatientIdFromUserPerson(selectedUser);
       const { data: ocrResult, error: ocrError } = await supabase.functions.invoke("process-bioimpedance", {
         body: {
           imageUrl: urlData.publicUrl,
+          patientId,
           userPerson: selectedUser,
         },
       });
@@ -85,8 +88,10 @@ const Upload = () => {
     setAnalyzing(true);
 
     try {
+      const patientId = getPatientIdFromUserPerson(selectedUser);
       const { data: analysisResult, error: analysisError } = await supabase.functions.invoke("generate-analysis", {
         body: {
+          patientId,
           userPerson: selectedUser,
         },
       });
@@ -111,7 +116,9 @@ const Upload = () => {
     setLoading(true);
 
     try {
+      const patientId = getPatientIdFromUserPerson(selectedUser);
       const { error } = await supabase.from("bioimpedance").insert({
+        patient_id: patientId,
         user_person: selectedUser as "reneer" | "ana_paula",
         ...extractedData,
       });

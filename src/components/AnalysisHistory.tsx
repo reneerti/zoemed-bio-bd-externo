@@ -21,11 +21,12 @@ interface AnalysisRecord {
 }
 
 interface AnalysisHistoryProps {
+  patientId?: string;
   userPerson: string;
   isAdmin?: boolean;
 }
 
-const AnalysisHistory = ({ userPerson, isAdmin = false }: AnalysisHistoryProps) => {
+const AnalysisHistory = ({ patientId, userPerson, isAdmin = false }: AnalysisHistoryProps) => {
   const [history, setHistory] = useState<AnalysisRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisRecord | null>(null);
@@ -33,15 +34,16 @@ const AnalysisHistory = ({ userPerson, isAdmin = false }: AnalysisHistoryProps) 
 
   useEffect(() => {
     loadHistory();
-  }, [userPerson]);
+  }, [patientId, userPerson]);
 
   const loadHistory = async () => {
     try {
-      const { data, error } = await supabase
-        .from("ai_analysis_history")
-        .select("*")
-        .eq("user_person", userPerson)
-        .order("analysis_date", { ascending: false });
+      // Prefer patient_id, fallback to user_person for backward compatibility
+      const query = patientId 
+        ? supabase.from("ai_analysis_history").select("*").eq("patient_id", patientId).order("analysis_date", { ascending: false })
+        : supabase.from("ai_analysis_history").select("*").eq("user_person", userPerson).order("analysis_date", { ascending: false });
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       setHistory(data || []);

@@ -14,12 +14,13 @@ interface Supplement {
 }
 
 interface SupplementationCardProps {
+  patientId?: string;
   userPerson: "reneer" | "ana_paula";
   title?: string;
   isAdmin?: boolean;
 }
 
-const SupplementationCard = ({ userPerson, title, isAdmin = false }: SupplementationCardProps) => {
+const SupplementationCard = ({ patientId, userPerson, title, isAdmin = false }: SupplementationCardProps) => {
   const [supplements, setSupplements] = useState<Supplement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,14 +30,15 @@ const SupplementationCard = ({ userPerson, title, isAdmin = false }: Supplementa
 
   useEffect(() => {
     loadSupplements();
-  }, [userPerson]);
+  }, [patientId, userPerson]);
 
   const loadSupplements = async () => {
-    const { data, error } = await supabase
-      .from("supplementation")
-      .select("*")
-      .eq("user_person", userPerson)
-      .order("created_at");
+    // Prefer patient_id, fallback to user_person for backward compatibility
+    const query = patientId 
+      ? supabase.from("supplementation").select("*").eq("patient_id", patientId).order("created_at")
+      : supabase.from("supplementation").select("*").eq("user_person", userPerson).order("created_at");
+    
+    const { data, error } = await query;
 
     if (error) {
       toast.error("Erro ao carregar suplementação");
@@ -101,6 +103,7 @@ const SupplementationCard = ({ userPerson, title, isAdmin = false }: Supplementa
     }
 
     const { error } = await supabase.from("supplementation").insert({
+      patient_id: patientId || null,
       user_person: userPerson,
       supplement_name: newForm.supplement_name,
       dosage: newForm.dosage,

@@ -36,21 +36,32 @@ serve(async (req) => {
       });
     }
 
-    const { userPerson } = await req.json();
+    const { patientId, userPerson } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Generating analysis for user: ${userPerson}`);
+    // Determine patient ID - use patientId if provided, otherwise lookup by userPerson
+    let resolvedPatientId = patientId;
+    if (!resolvedPatientId && userPerson) {
+      const { data: patient } = await supabase
+        .from("patients")
+        .select("id")
+        .or(`name.ilike.${userPerson.replace("_", " ")},name.eq.${userPerson}`)
+        .maybeSingle();
+      resolvedPatientId = patient?.id;
+    }
 
-    // Fetch all bioimpedance data for the user
-    const { data: records, error: dbError } = await supabase
-      .from("bioimpedance")
-      .select("*")
-      .eq("user_person", userPerson)
-      .order("measurement_date", { ascending: true });
+    console.log(`Generating analysis for patient: ${resolvedPatientId || userPerson}`);
+
+    // Fetch all bioimpedance data - prefer patient_id, fallback to user_person
+    const bioQuery = resolvedPatientId 
+      ? supabase.from("bioimpedance").select("*").eq("patient_id", resolvedPatientId).order("measurement_date", { ascending: true })
+      : supabase.from("bioimpedance").select("*").eq("user_person", userPerson).order("measurement_date", { ascending: true });
+    
+    const { data: records, error: dbError } = await bioQuery;
 
     if (dbError) {
       console.error("Database error:", dbError);
@@ -204,11 +215,12 @@ ${JSON.stringify(records.slice(-10), null, 2)}`,
 
     console.log("Saving analysis to history...");
 
-    // Save to history
+    // Save to history - include patient_id if available
     const { error: insertError } = await supabase
       .from("ai_analysis_history")
       .insert({
-        user_person: userPerson,
+        patient_id: resolvedPatientId || null,
+        user_person: userPerson || records[0].user_person,
         summary: summary.substring(0, 200),
         full_analysis: insights,
         weight_at_analysis: Number(latest.weight),
