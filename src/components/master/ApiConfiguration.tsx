@@ -13,8 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Database, Key, Cpu, Eye, EyeOff, Save, RefreshCw, 
   Zap, Server, Activity, AlertCircle, CheckCircle2, 
-  Cloud, Plug, User, BarChart3, Users, TrendingUp, Calendar
+  Cloud, Plug, User, BarChart3, Users, TrendingUp, Calendar,
+  Bell, DollarSign, ExternalLink, Globe, Info
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -85,7 +87,15 @@ const ApiConfiguration = () => {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   
   const [dailyUsage, setDailyUsage] = useState<DailyUsage[]>([]);
+  const [filteredDailyUsage, setFilteredDailyUsage] = useState<DailyUsage[]>([]);
   const [providerUsage, setProviderUsage] = useState<ProviderUsage[]>([]);
+  const [periodFilter, setPeriodFilter] = useState<"7" | "30" | "90">("30");
+  const [costAlertLimit, setCostAlertLimit] = useState<number>(10);
+  const [dbStatus, setDbStatus] = useState<"connected" | "disconnected" | "checking">("checking");
+  const [currentDbInfo, setCurrentDbInfo] = useState<{ url: string; projectId: string }>({
+    url: import.meta.env.VITE_SUPABASE_URL || "",
+    projectId: import.meta.env.VITE_SUPABASE_PROJECT_ID || ""
+  });
   
   const [dbConfig, setDbConfig] = useState<DatabaseConfig>({
     type: "api",
@@ -111,7 +121,38 @@ const ApiConfiguration = () => {
     fetchUsageStats();
     fetchPatientUsage();
     fetchDailyUsage();
+    checkDbConnection();
   }, []);
+
+  // Filter daily usage based on period
+  useEffect(() => {
+    const days = parseInt(periodFilter);
+    setFilteredDailyUsage(dailyUsage.slice(-days));
+  }, [dailyUsage, periodFilter]);
+
+  // Check cost alert
+  useEffect(() => {
+    const totalCost = dailyUsage.reduce((sum, d) => sum + d.cost, 0);
+    const alertConfig = configs.find(c => c.config_key === "cost_alert_limit");
+    const limit = alertConfig?.config_value ? parseFloat(alertConfig.config_value) : costAlertLimit;
+    
+    if (totalCost >= limit && totalCost > 0) {
+      toast.warning("Alerta de Custo!", {
+        description: `O custo total de API ($${totalCost.toFixed(4)}) ultrapassou o limite configurado ($${limit.toFixed(2)})`,
+        duration: 10000,
+      });
+    }
+  }, [dailyUsage, configs, costAlertLimit]);
+
+  const checkDbConnection = async () => {
+    setDbStatus("checking");
+    try {
+      const { error } = await supabase.from("patients").select("id").limit(1);
+      setDbStatus(error ? "disconnected" : "connected");
+    } catch {
+      setDbStatus("disconnected");
+    }
+  };
 
   const fetchConfigs = async () => {
     try {
@@ -427,181 +468,376 @@ const ApiConfiguration = () => {
 
         {/* Database Configuration Tab */}
         <TabsContent value="database">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Configuração do Banco de Dados</CardTitle>
-              </div>
-              <CardDescription>
-                Configure a conexão com o banco de dados. Escolha entre API (Supabase) ou Cloud (PostgreSQL direto).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Database Type Selection */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Tipo de Conexão</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      dbConfig.type === "api" 
-                        ? "border-primary bg-primary/5" 
-                        : "border-border hover:border-primary/50"
-                    }`}
-                    onClick={() => setDbConfig(prev => ({ ...prev, type: "api" }))}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Server className="w-8 h-8 text-primary" />
-                      <div>
-                        <p className="font-medium">API (Supabase)</p>
-                        <p className="text-xs text-muted-foreground">Conexão via REST API</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      dbConfig.type === "cloud" 
-                        ? "border-primary bg-primary/5" 
-                        : "border-border hover:border-primary/50"
-                    }`}
-                    onClick={() => setDbConfig(prev => ({ ...prev, type: "cloud" }))}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Cloud className="w-8 h-8 text-blue-500" />
-                      <div>
-                        <p className="font-medium">Cloud (PostgreSQL)</p>
-                        <p className="text-xs text-muted-foreground">Conexão direta ao banco</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <Tabs defaultValue="config" className="space-y-4">
+            <TabsList className="grid grid-cols-3 w-full max-w-md">
+              <TabsTrigger value="config" className="gap-2">
+                <Server className="w-4 h-4" />
+                Configurar
+              </TabsTrigger>
+              <TabsTrigger value="current" className="gap-2">
+                <Info className="w-4 h-4" />
+                Banco Atual
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="gap-2">
+                <Bell className="w-4 h-4" />
+                Alertas
+              </TabsTrigger>
+            </TabsList>
 
-              {dbConfig.type === "api" ? (
-                /* Supabase API Configuration */
-                <div className="space-y-4 p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                    <Server className="w-4 h-4" />
-                    Configuração Supabase
+            {/* Current Database Info Tab */}
+            <TabsContent value="current">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Banco de Dados Atual</CardTitle>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>URL da Instância</Label>
-                    <Input
-                      value={dbConfig.supabaseUrl}
-                      onChange={(e) => setDbConfig(prev => ({ ...prev, supabaseUrl: e.target.value }))}
-                      placeholder="https://seu-projeto.supabase.co"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Chave Anon/Pública</Label>
-                    <div className="relative">
-                      <Input
-                        type={showSecrets["supabaseKey"] ? "text" : "password"}
-                        value={dbConfig.supabaseKey}
-                        onChange={(e) => setDbConfig(prev => ({ ...prev, supabaseKey: e.target.value }))}
-                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => toggleShowSecret("supabaseKey")}
-                      >
-                        {showSecrets["supabaseKey"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <CardDescription>
+                    Informações sobre o banco de dados em uso no momento
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Status Card */}
+                  <div className="p-4 rounded-xl border-2 border-border bg-muted/30">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          dbStatus === "connected" ? "bg-green-500 animate-pulse" : 
+                          dbStatus === "checking" ? "bg-yellow-500 animate-pulse" : 
+                          "bg-red-500"
+                        }`} />
+                        <span className="font-medium">
+                          {dbStatus === "connected" ? "Conectado" : 
+                           dbStatus === "checking" ? "Verificando..." : 
+                           "Desconectado"}
+                        </span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={checkDbConnection} className="gap-2">
+                        <RefreshCw className={`w-4 h-4 ${dbStatus === "checking" ? "animate-spin" : ""}`} />
+                        Verificar
                       </Button>
                     </div>
-                  </div>
-                </div>
-              ) : (
-                /* Cloud PostgreSQL Configuration */
-                <div className="space-y-4 p-4 bg-muted/30 rounded-xl">
-                  <div className="flex items-center gap-2 text-sm font-medium text-blue-500">
-                    <Cloud className="w-4 h-4" />
-                    Configuração PostgreSQL Cloud
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Host / IP</Label>
-                      <Input
-                        value={dbConfig.host}
-                        onChange={(e) => setDbConfig(prev => ({ ...prev, host: e.target.value }))}
-                        placeholder="db.exemplo.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Porta</Label>
-                      <Input
-                        value={dbConfig.port}
-                        onChange={(e) => setDbConfig(prev => ({ ...prev, port: e.target.value }))}
-                        placeholder="5432"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Nome do Banco</Label>
-                    <Input
-                      value={dbConfig.database}
-                      onChange={(e) => setDbConfig(prev => ({ ...prev, database: e.target.value }))}
-                      placeholder="postgres"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Usuário</Label>
-                      <Input
-                        value={dbConfig.username}
-                        onChange={(e) => setDbConfig(prev => ({ ...prev, username: e.target.value }))}
-                        placeholder="postgres"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Senha</Label>
-                      <div className="relative">
-                        <Input
-                          type={showSecrets["dbPassword"] ? "text" : "password"}
-                          value={dbConfig.password}
-                          onChange={(e) => setDbConfig(prev => ({ ...prev, password: e.target.value }))}
-                          placeholder="••••••••"
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => toggleShowSecret("dbPassword")}
-                        >
-                          {showSecrets["dbPassword"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
+                    
+                    <div className="space-y-3">
+                      <div className="p-3 bg-background rounded-lg">
+                        <Label className="text-xs text-muted-foreground">URL do Banco</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <code className="text-sm font-mono break-all flex-1">
+                            {currentDbInfo.url || "Não configurado"}
+                          </code>
+                          {currentDbInfo.url && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(currentDbInfo.url, "_blank")}
+                              className="shrink-0"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="p-3 bg-background rounded-lg">
+                        <Label className="text-xs text-muted-foreground">Project ID</Label>
+                        <code className="text-sm font-mono block mt-1">
+                          {currentDbInfo.projectId || "Não disponível"}
+                        </code>
+                      </div>
+                      
+                      <div className="p-3 bg-background rounded-lg">
+                        <Label className="text-xs text-muted-foreground">Tipo de Conexão</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={dbConfig.type === "api" ? "default" : "secondary"}>
+                            {dbConfig.type === "api" ? "API (Supabase)" : "Cloud (PostgreSQL)"}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Connection Test Button */}
-              <Button 
-                onClick={testConnection} 
-                variant="outline" 
-                className="w-full gap-2"
-                disabled={testingConnection}
-              >
-                {testingConnection ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plug className="w-4 h-4" />
-                )}
-                Testar Conexão
-              </Button>
-            </CardContent>
-          </Card>
+                  {/* Quick Links */}
+                  {currentDbInfo.url && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => window.open(`${currentDbInfo.url}/project/${currentDbInfo.projectId}`, "_blank")}
+                      >
+                        <Database className="w-4 h-4" />
+                        Abrir Dashboard
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => window.open(`${currentDbInfo.url}/project/${currentDbInfo.projectId}/editor`, "_blank")}
+                      >
+                        <Server className="w-4 h-4" />
+                        SQL Editor
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Alerts Configuration Tab */}
+            <TabsContent value="alerts">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-yellow-500" />
+                    <CardTitle className="text-lg">Configuração de Alertas</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Configure alertas automáticos para monitorar custos de API
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Cost Alert */}
+                  <div className="p-4 bg-muted/30 rounded-xl space-y-4">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-green-500" />
+                      <Label className="font-medium">Alerta de Custo Máximo</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Receba um alerta quando o custo total de API ultrapassar o limite definido
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-muted-foreground">$</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={costAlertLimit}
+                          onChange={(e) => setCostAlertLimit(parseFloat(e.target.value) || 0)}
+                          className="max-w-32"
+                        />
+                        <span className="text-sm text-muted-foreground">USD</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          await upsertConfig("cost_alert_limit", costAlertLimit.toString(), "alerts");
+                          toast.success("Limite de custo salvo!");
+                        }}
+                      >
+                        Salvar
+                      </Button>
+                    </div>
+                    
+                    {/* Current cost indicator */}
+                    <div className="p-3 bg-background rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm">Custo Atual</span>
+                        <span className="font-medium">
+                          $ {dailyUsage.reduce((sum, d) => sum + d.cost, 0).toFixed(4)}
+                        </span>
+                      </div>
+                      <Progress 
+                        value={Math.min((dailyUsage.reduce((sum, d) => sum + d.cost, 0) / costAlertLimit) * 100, 100)} 
+                        className="h-2"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {((dailyUsage.reduce((sum, d) => sum + d.cost, 0) / costAlertLimit) * 100).toFixed(1)}% do limite
+                      </p>
+                    </div>
+                  </div>
+
+                  {dailyUsage.reduce((sum, d) => sum + d.cost, 0) >= costAlertLimit && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Limite de Custo Ultrapassado!</AlertTitle>
+                      <AlertDescription>
+                        O custo total de API ultrapassou o limite configurado de ${costAlertLimit.toFixed(2)}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Database Configuration Sub-Tab */}
+            <TabsContent value="config">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Database className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Configuração do Banco de Dados</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Configure a conexão com o banco de dados. Escolha entre API (Supabase) ou Cloud (PostgreSQL direto).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Database Type Selection */}
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Tipo de Conexão</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          dbConfig.type === "api" 
+                            ? "border-primary bg-primary/5" 
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => setDbConfig(prev => ({ ...prev, type: "api" }))}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Server className="w-8 h-8 text-primary" />
+                          <div>
+                            <p className="font-medium">API (Supabase)</p>
+                            <p className="text-xs text-muted-foreground">Conexão via REST API</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                          dbConfig.type === "cloud" 
+                            ? "border-primary bg-primary/5" 
+                            : "border-border hover:border-primary/50"
+                        }`}
+                        onClick={() => setDbConfig(prev => ({ ...prev, type: "cloud" }))}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Cloud className="w-8 h-8 text-blue-500" />
+                          <div>
+                            <p className="font-medium">Cloud (PostgreSQL)</p>
+                            <p className="text-xs text-muted-foreground">Conexão direta ao banco</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {dbConfig.type === "api" ? (
+                    /* Supabase API Configuration */
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-xl">
+                      <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                        <Server className="w-4 h-4" />
+                        Configuração Supabase
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>URL da Instância</Label>
+                        <Input
+                          value={dbConfig.supabaseUrl}
+                          onChange={(e) => setDbConfig(prev => ({ ...prev, supabaseUrl: e.target.value }))}
+                          placeholder="https://seu-projeto.supabase.co"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Chave Anon/Pública</Label>
+                        <div className="relative">
+                          <Input
+                            type={showSecrets["supabaseKey"] ? "text" : "password"}
+                            value={dbConfig.supabaseKey}
+                            onChange={(e) => setDbConfig(prev => ({ ...prev, supabaseKey: e.target.value }))}
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                            className="pr-10"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => toggleShowSecret("supabaseKey")}
+                          >
+                            {showSecrets["supabaseKey"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Cloud PostgreSQL Configuration */
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-xl">
+                      <div className="flex items-center gap-2 text-sm font-medium text-blue-500">
+                        <Cloud className="w-4 h-4" />
+                        Configuração PostgreSQL Cloud
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Host / IP</Label>
+                          <Input
+                            value={dbConfig.host}
+                            onChange={(e) => setDbConfig(prev => ({ ...prev, host: e.target.value }))}
+                            placeholder="db.exemplo.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Porta</Label>
+                          <Input
+                            value={dbConfig.port}
+                            onChange={(e) => setDbConfig(prev => ({ ...prev, port: e.target.value }))}
+                            placeholder="5432"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Nome do Banco</Label>
+                        <Input
+                          value={dbConfig.database}
+                          onChange={(e) => setDbConfig(prev => ({ ...prev, database: e.target.value }))}
+                          placeholder="postgres"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Usuário</Label>
+                          <Input
+                            value={dbConfig.username}
+                            onChange={(e) => setDbConfig(prev => ({ ...prev, username: e.target.value }))}
+                            placeholder="postgres"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Senha</Label>
+                          <div className="relative">
+                            <Input
+                              type={showSecrets["dbPassword"] ? "text" : "password"}
+                              value={dbConfig.password}
+                              onChange={(e) => setDbConfig(prev => ({ ...prev, password: e.target.value }))}
+                              placeholder="••••••••"
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3"
+                              onClick={() => toggleShowSecret("dbPassword")}
+                            >
+                              {showSecrets["dbPassword"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Connection Test Button */}
+                  <Button 
+                    onClick={testConnection} 
+                    variant="outline" 
+                    className="w-full gap-2"
+                    disabled={testingConnection}
+                  >
+                    {testingConnection ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plug className="w-4 h-4" />
+                    )}
+                    Testar Conexão
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* API Keys Tab */}
@@ -845,8 +1081,39 @@ const ApiConfiguration = () => {
         {/* Statistics Tab */}
         <TabsContent value="statistics">
           <div className="space-y-6">
+            {/* Period Filter */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                <span className="font-medium">Período de Análise</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={periodFilter === "7" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPeriodFilter("7")}
+                >
+                  7 dias
+                </Button>
+                <Button 
+                  variant={periodFilter === "30" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPeriodFilter("30")}
+                >
+                  30 dias
+                </Button>
+                <Button 
+                  variant={periodFilter === "90" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPeriodFilter("90")}
+                >
+                  90 dias
+                </Button>
+              </div>
+            </div>
+
             {/* Overview Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <Card className="p-4">
                 <div className="flex items-center gap-3">
                   <Activity className="w-8 h-8 text-primary" />
@@ -874,21 +1141,36 @@ const ApiConfiguration = () => {
                   </div>
                 </div>
               </Card>
+              <Card className={`p-4 ${filteredDailyUsage.reduce((sum, d) => sum + d.cost, 0) >= costAlertLimit ? "border-destructive bg-destructive/5" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <Bell className={`w-8 h-8 ${filteredDailyUsage.reduce((sum, d) => sum + d.cost, 0) >= costAlertLimit ? "text-destructive" : "text-yellow-500"}`} />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Limite de Custo</p>
+                    <p className="text-2xl font-bold">$ {costAlertLimit.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {((filteredDailyUsage.reduce((sum, d) => sum + d.cost, 0) / costAlertLimit) * 100).toFixed(0)}% usado
+                    </p>
+                  </div>
+                </div>
+              </Card>
             </div>
 
             {/* Daily Usage Chart */}
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-lg">Evolução do Consumo (Últimos 14 dias)</CardTitle>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Evolução do Consumo (Últimos {periodFilter} dias)</CardTitle>
+                  </div>
+                  <Badge variant="outline">{filteredDailyUsage.length} registros</Badge>
                 </div>
                 <CardDescription>
                   Visualização da quantidade de requisições OCR e IA ao longo do tempo
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dailyUsage.length === 0 ? (
+                {filteredDailyUsage.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>Nenhum dado de consumo registrado ainda</p>
@@ -896,7 +1178,7 @@ const ApiConfiguration = () => {
                 ) : (
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={dailyUsage}>
+                      <AreaChart data={filteredDailyUsage}>
                         <defs>
                           <linearGradient id="colorOcr" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -953,7 +1235,7 @@ const ApiConfiguration = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dailyUsage.length === 0 ? (
+                {filteredDailyUsage.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>Nenhum dado de custo registrado ainda</p>
@@ -961,7 +1243,7 @@ const ApiConfiguration = () => {
                 ) : (
                   <div className="h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dailyUsage}>
+                      <BarChart data={filteredDailyUsage}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
                         <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v.toFixed(3)}`} />
