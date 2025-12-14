@@ -13,8 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Database, Key, Cpu, Eye, EyeOff, Save, RefreshCw, 
   Zap, Server, Activity, AlertCircle, CheckCircle2, 
-  Cloud, Plug, User, BarChart3, Users
+  Cloud, Plug, User, BarChart3, Users, TrendingUp, Calendar
 } from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from "recharts";
 
 interface ApiConfig {
   id: string;
@@ -39,6 +43,19 @@ interface PatientUsage {
   ocr_requests: number;
   ai_requests: number;
   total_cost: number;
+}
+
+interface DailyUsage {
+  date: string;
+  ocr: number;
+  ai: number;
+  cost: number;
+}
+
+interface ProviderUsage {
+  name: string;
+  value: number;
+  color: string;
 }
 
 interface DatabaseConfig {
@@ -67,6 +84,9 @@ const ApiConfiguration = () => {
   const [testingConnection, setTestingConnection] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   
+  const [dailyUsage, setDailyUsage] = useState<DailyUsage[]>([]);
+  const [providerUsage, setProviderUsage] = useState<ProviderUsage[]>([]);
+  
   const [dbConfig, setDbConfig] = useState<DatabaseConfig>({
     type: "api",
     host: "",
@@ -84,10 +104,13 @@ const ApiConfiguration = () => {
     openai_key: "",
   });
 
+  const CHART_COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(217 91% 60%)", "hsl(45 93% 47%)", "hsl(0 84% 60%)"];
+
   useEffect(() => {
     fetchConfigs();
     fetchUsageStats();
     fetchPatientUsage();
+    fetchDailyUsage();
   }, []);
 
   const fetchConfigs = async () => {
@@ -214,6 +237,56 @@ const ApiConfiguration = () => {
       setPatientUsage(Array.from(patientMap.values()).sort((a, b) => b.total_cost - a.total_cost));
     } catch (error) {
       console.error("Error fetching patient usage:", error);
+    }
+  };
+
+  const fetchDailyUsage = async () => {
+    try {
+      const { data: logs, error } = await supabase
+        .from("api_usage_logs")
+        .select("created_at, operation_type, estimated_cost, provider")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+
+      // Group by date
+      const dateMap = new Map<string, DailyUsage>();
+      const providerMap = new Map<string, number>();
+      
+      (logs || []).forEach((log) => {
+        const date = new Date(log.created_at).toLocaleDateString("pt-BR", { 
+          day: "2-digit", 
+          month: "short" 
+        });
+        
+        const existing = dateMap.get(date) || { date, ocr: 0, ai: 0, cost: 0 };
+        
+        if (log.operation_type === "ocr") {
+          existing.ocr++;
+        } else {
+          existing.ai++;
+        }
+        existing.cost += Number(log.estimated_cost) || 0;
+        dateMap.set(date, existing);
+
+        // Accumulate provider usage
+        const providerName = log.provider || "Desconhecido";
+        providerMap.set(providerName, (providerMap.get(providerName) || 0) + 1);
+      });
+
+      // Take last 14 days
+      const sortedDays = Array.from(dateMap.values()).slice(-14);
+      setDailyUsage(sortedDays);
+
+      // Convert provider map to array
+      const providerArray: ProviderUsage[] = Array.from(providerMap.entries()).map(([name, value], idx) => ({
+        name,
+        value,
+        color: CHART_COLORS[idx % CHART_COLORS.length]
+      }));
+      setProviderUsage(providerArray);
+    } catch (error) {
+      console.error("Error fetching daily usage:", error);
     }
   };
 
@@ -803,55 +876,203 @@ const ApiConfiguration = () => {
               </Card>
             </div>
 
-            {/* Usage by Provider */}
+            {/* Daily Usage Chart */}
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Server className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-lg">Consumo por Provedor</CardTitle>
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <CardTitle className="text-lg">Evolução do Consumo (Últimos 14 dias)</CardTitle>
                 </div>
+                <CardDescription>
+                  Visualização da quantidade de requisições OCR e IA ao longo do tempo
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {usageStats.length === 0 ? (
+                {dailyUsage.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Server className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Nenhum uso registrado ainda</p>
+                    <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum dado de consumo registrado ainda</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {usageStats.map((stat, idx) => (
-                      <div key={idx} className="p-4 bg-muted/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{stat.provider}</span>
-                            <Badge variant="outline">{stat.operation_type}</Badge>
-                          </div>
-                          <span className="text-sm font-medium">$ {stat.total_cost.toFixed(4)}</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Requisições:</span>
-                            <span className="ml-2 font-medium">{stat.total_requests}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground">Taxa de sucesso:</span>
-                            {stat.success_rate >= 90 ? (
-                              <CheckCircle2 className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-yellow-500" />
-                            )}
-                            <span className="font-medium">{stat.success_rate.toFixed(1)}%</span>
-                          </div>
-                          <div>
-                            <Progress value={stat.success_rate} className="h-2" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={dailyUsage}>
+                        <defs>
+                          <linearGradient id="colorOcr" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(142 76% 36%)" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="hsl(142 76% 36%)" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                        <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px"
+                          }}
+                        />
+                        <Legend />
+                        <Area 
+                          type="monotone" 
+                          dataKey="ocr" 
+                          name="OCR"
+                          stroke="hsl(var(--primary))" 
+                          fillOpacity={1} 
+                          fill="url(#colorOcr)" 
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="ai" 
+                          name="IA"
+                          stroke="hsl(142 76% 36%)" 
+                          fillOpacity={1} 
+                          fill="url(#colorAi)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Cost Evolution Chart */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-green-500" />
+                  <CardTitle className="text-lg">Evolução de Custos (USD)</CardTitle>
+                </div>
+                <CardDescription>
+                  Custo acumulado por dia em dólares americanos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dailyUsage.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum dado de custo registrado ainda</p>
+                  </div>
+                ) : (
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dailyUsage}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                        <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${v.toFixed(3)}`} />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px"
+                          }}
+                          formatter={(value: number) => [`$${value.toFixed(4)}`, "Custo"]}
+                        />
+                        <Bar dataKey="cost" name="Custo" fill="hsl(142 76% 36%)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Provider Distribution Pie Chart */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Server className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Distribuição por Provedor</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {providerUsage.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Server className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhum uso registrado</p>
+                    </div>
+                  ) : (
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={providerUsage}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={100}
+                            paddingAngle={2}
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                            labelLine={false}
+                          >
+                            {providerUsage.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: "hsl(var(--background))", 
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px"
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Usage by Provider List */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-primary" />
+                    <CardTitle className="text-lg">Detalhes por Provedor</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {usageStats.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Server className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhum uso registrado ainda</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[220px] overflow-y-auto">
+                      {usageStats.map((stat, idx) => (
+                        <div key={idx} className="p-3 bg-muted/30 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{stat.provider}</span>
+                              <Badge variant="outline" className="text-xs">{stat.operation_type}</Badge>
+                            </div>
+                            <span className="text-sm font-medium">$ {stat.total_cost.toFixed(4)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{stat.total_requests} requisições</span>
+                            <div className="flex items-center gap-1">
+                              {stat.success_rate >= 90 ? (
+                                <CheckCircle2 className="w-3 h-3 text-green-500" />
+                              ) : (
+                                <AlertCircle className="w-3 h-3 text-yellow-500" />
+                              )}
+                              <span>{stat.success_rate.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                          <Progress value={stat.success_rate} className="h-1 mt-2" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Usage by Patient */}
             <Card>
