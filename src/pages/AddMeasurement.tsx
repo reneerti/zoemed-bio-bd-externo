@@ -9,6 +9,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { getPatientIdFromUserPerson } from "@/hooks/usePatientId";
 
 const AddMeasurement = () => {
   const navigate = useNavigate();
@@ -61,7 +62,9 @@ const AddMeasurement = () => {
     setSubmitting(true);
 
     try {
+      const patientId = getPatientIdFromUserPerson(formData.user_person);
       const dataToInsert = {
+        patient_id: patientId,
         user_person: formData.user_person as "reneer" | "ana_paula",
         measurement_date: formData.measurement_date,
         week_number: formData.week_number ? parseInt(formData.week_number) : null,

@@ -16,6 +16,7 @@ import ReportGenerator from "@/components/ReportGenerator";
 import MetricsRadarChart from "@/components/MetricsRadarChart";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePatientId } from "@/hooks/usePatientId";
 import { toast } from "sonner";
 
 interface BioimpedanceRecord {
@@ -49,31 +50,33 @@ const Dashboard = () => {
   const { person } = useParams<{ person: string }>();
   const { user, loading } = useAuth();
   const { isAdmin } = useUserRole();
+  const { patientId, patientName: resolvedPatientName, loading: patientLoading } = usePatientId(person);
   const [records, setRecords] = useState<BioimpedanceRecord[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisKey, setAnalysisKey] = useState(0);
 
   const isReneer = person === "reneer";
-  const personName = isReneer ? "Reneer" : "Ana Paula";
+  const personName = resolvedPatientName || (isReneer ? "Reneer" : "Ana Paula");
 
   useEffect(() => {
     if (!loading && !user) {
       navigate("/");
       return;
     }
-    if (user) {
+    if (user && patientId && !patientLoading) {
       loadData();
     }
-  }, [person, user, loading, navigate]);
+  }, [person, user, loading, navigate, patientId, patientLoading]);
 
   const loadData = async () => {
+    if (!patientId) return;
+    
     try {
-      const userPerson = person as "reneer" | "ana_paula";
       const { data, error } = await supabase
         .from("bioimpedance")
         .select("*")
-        .eq("user_person", userPerson)
+        .eq("patient_id", patientId)
         .order("measurement_date", { ascending: true });
 
       if (error) throw error;
@@ -86,10 +89,12 @@ const Dashboard = () => {
   };
 
   const generateAnalysis = async () => {
+    if (!patientId) return;
+    
     setAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-analysis", {
-        body: { userPerson: person },
+        body: { patientId, userPerson: person },
       });
 
       if (error) throw error;
@@ -137,7 +142,7 @@ const Dashboard = () => {
     a.click();
   };
 
-  if (loading || dataLoading) {
+  if (loading || dataLoading || patientLoading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground text-xl">Carregando...</div>
@@ -382,9 +387,10 @@ const Dashboard = () => {
         )}
 
         {/* Goals Progress */}
-        {records.length > 0 && (
+        {records.length > 0 && patientId && (
           <div className="mb-8">
             <GoalsProgress 
+              patientId={patientId}
               userPerson={person || ""} 
               currentMetrics={{
                 weight: records[records.length - 1].weight,
@@ -443,7 +449,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="analises">
-            <AnalysisHistory key={analysisKey} userPerson={person || ""} isAdmin={isAdmin} />
+            <AnalysisHistory key={analysisKey} patientId={patientId || ""} userPerson={person || ""} isAdmin={isAdmin} />
           </TabsContent>
         </Tabs>
       </div>

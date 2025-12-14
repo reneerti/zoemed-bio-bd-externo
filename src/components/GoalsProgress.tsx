@@ -31,6 +31,7 @@ interface CurrentMetrics {
 }
 
 interface GoalsProgressProps {
+  patientId?: string;
   userPerson: string;
   currentMetrics: CurrentMetrics;
   initialMetrics: CurrentMetrics;
@@ -38,7 +39,7 @@ interface GoalsProgressProps {
   isMale?: boolean;
 }
 
-const GoalsProgress = ({ userPerson, currentMetrics, initialMetrics, isAdmin = false, isMale = true }: GoalsProgressProps) => {
+const GoalsProgress = ({ patientId, userPerson, currentMetrics, initialMetrics, isAdmin = false, isMale = true }: GoalsProgressProps) => {
   const [goals, setGoals] = useState<UserGoal | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -53,15 +54,16 @@ const GoalsProgress = ({ userPerson, currentMetrics, initialMetrics, isAdmin = f
 
   useEffect(() => {
     loadGoals();
-  }, [userPerson]);
+  }, [patientId, userPerson]);
 
   const loadGoals = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_goals")
-        .select("*")
-        .eq("user_person", userPerson)
-        .maybeSingle();
+      // Prefer patient_id, fallback to user_person for backward compatibility
+      const query = patientId 
+        ? supabase.from("user_goals").select("*").eq("patient_id", patientId).maybeSingle()
+        : supabase.from("user_goals").select("*").eq("user_person", userPerson).maybeSingle();
+      
+      const { data, error } = await query;
 
       if (error) throw error;
       setGoals(data);
@@ -86,6 +88,7 @@ const GoalsProgress = ({ userPerson, currentMetrics, initialMetrics, isAdmin = f
   const saveGoals = async () => {
     try {
       const dataToSave = {
+        patient_id: patientId || null,
         user_person: userPerson,
         target_weight: formData.target_weight ? parseFloat(formData.target_weight) : null,
         target_body_fat: formData.target_body_fat ? parseFloat(formData.target_body_fat) : null,
