@@ -214,6 +214,65 @@ async function ocrWithLovableGateway(imageUrl: string): Promise<string> {
   return data.choices?.[0]?.message?.content || "";
 }
 
+// OCR using Google Vision API
+async function ocrWithGoogleVision(supabase: any, imageUrl: string): Promise<string> {
+  // Get Google Vision API key from config
+  const { data: config } = await supabase
+    .from("api_configurations")
+    .select("config_value")
+    .eq("config_key", "google_vision_api_key")
+    .eq("is_active", true)
+    .single();
+
+  const apiKey = config?.config_value;
+  if (!apiKey) throw new Error("Google Vision API key not configured");
+
+  // Fetch the image and convert to base64
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) throw new Error("Failed to fetch image");
+  
+  const imageBuffer = await imageResponse.arrayBuffer();
+  const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+
+  // Call Google Vision API
+  const response = await fetch(
+    `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [
+          {
+            image: { content: base64Image },
+            features: [
+              { type: "TEXT_DETECTION", maxResults: 1 },
+              { type: "DOCUMENT_TEXT_DETECTION", maxResults: 1 }
+            ]
+          }
+        ]
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google Vision API failed: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  
+  // Try to get full text annotation first, fallback to text annotations
+  const fullText = data.responses?.[0]?.fullTextAnnotation?.text;
+  if (fullText) return fullText;
+  
+  const textAnnotations = data.responses?.[0]?.textAnnotations;
+  if (textAnnotations && textAnnotations.length > 0) {
+    return textAnnotations[0].description || "";
+  }
+
+  return "";
+}
+
 // Generate insights using AI
 async function generateInsightsWithAI(
   supabase: any,
@@ -382,12 +441,14 @@ serve(async (req) => {
         if (provider === "lovable_gateway") {
           rawText = await ocrWithLovableGateway(imageUrl);
           extractionMethod = "lovable_gateway";
+        } else if (provider === "google_vision") {
+          rawText = await ocrWithGoogleVision(supabase, imageUrl);
+          extractionMethod = "google_vision";
         } else if (provider === "regex_only") {
           // Skip OCR, will try regex on any existing text
           extractionMethod = "regex_only";
           break;
         }
-        // Add more providers here (google_vision, etc.)
 
         if (rawText) {
           ocrSuccess = true;

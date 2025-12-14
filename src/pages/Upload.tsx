@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload as UploadIcon, FileImage, Loader2, Sparkles, CheckCircle, Brain } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Upload as UploadIcon, FileImage, Loader2, Sparkles, CheckCircle, Brain, Zap, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getPatientIdFromUserPerson } from "@/hooks/usePatientId";
@@ -19,6 +20,11 @@ const Upload = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
   const [insights, setInsights] = useState<string | null>(null);
+  const [processingInfo, setProcessingInfo] = useState<{
+    method?: string;
+    time?: number;
+    extractionId?: string;
+  } | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -29,6 +35,7 @@ const Upload = () => {
       reader.readAsDataURL(selectedFile);
       setExtractedData(null);
       setInsights(null);
+      setProcessingInfo(null);
     }
   };
 
@@ -39,6 +46,7 @@ const Upload = () => {
     }
 
     setProcessing(true);
+    setProcessingInfo(null);
 
     try {
       // Upload image to storage
@@ -54,26 +62,63 @@ const Upload = () => {
         .from("bioimpedance-images")
         .getPublicUrl(fileName);
 
-      // Call OCR edge function
+      // Call new v2 OCR edge function with fallback support
       const patientId = getPatientIdFromUserPerson(selectedUser);
-      const { data: ocrResult, error: ocrError } = await supabase.functions.invoke("process-bioimpedance", {
+      const { data: ocrResult, error: ocrError } = await supabase.functions.invoke("process-bioimpedance-v2", {
         body: {
           imageUrl: urlData.publicUrl,
           patientId,
-          userPerson: selectedUser,
         },
       });
 
-      if (ocrError) throw ocrError;
+      if (ocrError) {
+        console.error("V2 function error:", ocrError);
+        // Fallback to legacy function
+        toast.info("Usando processamento alternativo...");
+        const { data: legacyResult, error: legacyError } = await supabase.functions.invoke("process-bioimpedance", {
+          body: {
+            imageUrl: urlData.publicUrl,
+            patientId,
+            userPerson: selectedUser,
+          },
+        });
 
-      if (ocrResult?.data) {
-        setExtractedData(ocrResult.data);
+        if (legacyError) throw legacyError;
+
+        if (legacyResult?.data) {
+          setExtractedData(legacyResult.data);
+          setInsights(legacyResult.insights);
+          setProcessingInfo({ method: "legacy" });
+          toast.success("Dados extraídos com sucesso!");
+        }
+        return;
+      }
+
+      if (ocrResult?.success) {
+        // Add measurement_date if not present
+        const dataWithDate = {
+          measurement_date: new Date().toISOString().split('T')[0],
+          ...ocrResult.extractedData
+        };
+        
+        setExtractedData(dataWithDate);
         setInsights(ocrResult.insights);
-        toast.success("Dados extraídos com sucesso!");
+        setProcessingInfo({
+          method: ocrResult.extractionMethod || "v2",
+          time: ocrResult.processingTime,
+          extractionId: ocrResult.extractionId,
+        });
+        toast.success("Dados extraídos com sucesso!", {
+          description: `Processado em ${ocrResult.processingTime}ms`
+        });
+      } else if (ocrResult?.error) {
+        throw new Error(ocrResult.error);
       }
     } catch (error) {
       console.error("Error processing image:", error);
-      toast.error("Erro ao processar imagem");
+      toast.error("Erro ao processar imagem", {
+        description: error instanceof Error ? error.message : "Tente novamente"
+      });
     } finally {
       setProcessing(false);
     }
@@ -117,11 +162,40 @@ const Upload = () => {
 
     try {
       const patientId = getPatientIdFromUserPerson(selectedUser);
-      const { error } = await supabase.from("bioimpedance").insert({
+      
+      // Filter out null values and prepare data
+      const cleanData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(extractedData)) {
+        if (value !== null && value !== undefined) {
+          cleanData[key] = value;
+        }
+      }
+
+      const insertData = {
         patient_id: patientId,
         user_person: selectedUser as "reneer" | "ana_paula",
-        ...extractedData,
-      });
+        measurement_date: cleanData.measurement_date || new Date().toISOString().split('T')[0],
+        weight: cleanData.weight || null,
+        bmi: cleanData.bmi || null,
+        body_fat_percent: cleanData.body_fat_percent || null,
+        fat_mass: cleanData.fat_mass || null,
+        lean_mass: cleanData.lean_mass || null,
+        muscle_mass: cleanData.muscle_mass || null,
+        muscle_rate_percent: cleanData.muscle_rate_percent || null,
+        skeletal_muscle_percent: cleanData.skeletal_muscle_percent || null,
+        bone_mass: cleanData.bone_mass || null,
+        protein_mass: cleanData.protein_mass || null,
+        protein_percent: cleanData.protein_percent || null,
+        body_water_percent: cleanData.body_water_percent || null,
+        moisture_content: cleanData.moisture_content || null,
+        subcutaneous_fat_percent: cleanData.subcutaneous_fat_percent || null,
+        visceral_fat: cleanData.visceral_fat || null,
+        bmr: cleanData.bmr || null,
+        metabolic_age: cleanData.metabolic_age || null,
+        whr: cleanData.whr || null,
+      };
+
+      const { error } = await supabase.from("bioimpedance").insert(insertData);
 
       if (error) throw error;
 
@@ -161,6 +235,18 @@ const Upload = () => {
     return fieldNames[key] || key;
   };
 
+  const getMethodBadge = (method?: string) => {
+    const methods: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+      lovable_gateway: { label: "Gemini Vision", variant: "default" },
+      google_vision: { label: "Google Vision", variant: "secondary" },
+      regex_only: { label: "Regex (Gratuito)", variant: "outline" },
+      legacy: { label: "Legacy", variant: "outline" },
+      v2: { label: "V2", variant: "default" },
+    };
+    const config = methods[method || ""] || { label: method || "Desconhecido", variant: "outline" as const };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
@@ -177,7 +263,7 @@ const Upload = () => {
               Upload de Bioimpedância
             </CardTitle>
             <CardDescription>
-              Faça upload de um relatório Fitdays ou foto da bioimpedância para extrair os dados automaticamente via OCR e IA.
+              Faça upload de um relatório Fitdays ou foto da bioimpedância. O sistema usa OCR com fallback automático e parser regex para maior confiabilidade.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -265,12 +351,12 @@ const Upload = () => {
                 {processing ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Processando com IA...
+                    Processando com OCR + IA...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Extrair Dados com OCR
+                    <Zap className="w-5 h-5 mr-2" />
+                    Extrair Dados (OCR + Fallback)
                   </>
                 )}
               </Button>
@@ -279,13 +365,26 @@ const Upload = () => {
             {extractedData && (
               <div className="space-y-4 animate-slide-up">
                 <div className="p-4 rounded-xl bg-success/10 border border-success/30">
-                  <div className="flex items-center gap-2 text-success font-medium mb-2">
-                    <CheckCircle className="w-5 h-5" />
-                    Dados Extraídos
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-success font-medium">
+                      <CheckCircle className="w-5 h-5" />
+                      Dados Extraídos
+                    </div>
+                    {processingInfo && (
+                      <div className="flex items-center gap-2 text-xs">
+                        {getMethodBadge(processingInfo.method)}
+                        {processingInfo.time && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            {processingInfo.time}ms
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     {Object.entries(extractedData).map(([key, value]) => (
-                      value && (
+                      value !== null && value !== undefined && (
                         <div key={key} className="flex justify-between">
                           <span className="text-muted-foreground">{formatFieldName(key)}:</span>
                           <span className="font-medium">{String(value)}</span>
