@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 // Simple encryption using base64 + XOR with secret key
-// In production, consider using Deno's crypto.subtle for AES encryption
 const ENCRYPTION_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.substring(0, 32) || "default_encryption_key_32chars!";
 
 function encrypt(text: string): string {
@@ -20,14 +19,12 @@ function encrypt(text: string): string {
     encrypted[i] = encoded[i] ^ keyBytes[i % keyBytes.length];
   }
   
-  // Convert to base64 for safe storage
   return btoa(String.fromCharCode(...encrypted));
 }
 
 function decrypt(encryptedText: string): string {
   if (!encryptedText) return "";
   try {
-    // Decode from base64
     const decoded = atob(encryptedText);
     const encrypted = new Uint8Array([...decoded].map(c => c.charCodeAt(0)));
     const keyBytes = new TextEncoder().encode(ENCRYPTION_KEY);
@@ -39,7 +36,7 @@ function decrypt(encryptedText: string): string {
     
     return new TextDecoder().decode(decrypted);
   } catch {
-    return encryptedText; // Return as-is if decryption fails (might be unencrypted)
+    return encryptedText;
   }
 }
 
@@ -66,7 +63,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify user is admin
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
@@ -77,7 +73,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is master/admin
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("role")
@@ -95,7 +90,6 @@ serve(async (req) => {
 
     switch (action) {
       case "list": {
-        // Get all API key configurations
         const { data: configs, error } = await supabase
           .from("api_configurations")
           .select("*")
@@ -104,7 +98,6 @@ serve(async (req) => {
 
         if (error) throw error;
 
-        // Mask the values for security (don't send full keys to frontend)
         const maskedConfigs = configs?.map(c => ({
           ...c,
           config_value: c.config_value ? maskApiKey(decrypt(c.config_value)) : null,
@@ -118,7 +111,7 @@ serve(async (req) => {
       }
 
       case "create": {
-        const { config_key, config_value, provider, display_name } = data;
+        const { config_key, config_value, provider } = data;
         
         if (!config_key || !provider) {
           return new Response(
@@ -127,7 +120,6 @@ serve(async (req) => {
           );
         }
 
-        // Encrypt the API key value
         const encryptedValue = config_value ? encrypt(config_value) : null;
 
         const { data: newConfig, error } = await supabase
@@ -167,7 +159,7 @@ serve(async (req) => {
           );
         }
 
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         
         if (config_value !== undefined) {
           updateData.config_value = config_value ? encrypt(config_value) : null;
@@ -202,6 +194,115 @@ serve(async (req) => {
         );
       }
 
+      case "rotate": {
+        const { id, new_value, reason } = data;
+        
+        if (!id || !new_value) {
+          return new Response(
+            JSON.stringify({ error: "id and new_value are required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Get current config
+        const { data: currentConfig, error: fetchError } = await supabase
+          .from("api_configurations")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (fetchError) throw fetchError;
+
+        // Get current version number
+        const { data: lastHistory } = await supabase
+          .from("api_key_history")
+          .select("version_number")
+          .eq("config_id", id)
+          .order("version_number", { ascending: false })
+          .limit(1)
+          .single();
+
+        const newVersionNumber = (lastHistory?.version_number || 0) + 1;
+
+        // Save current value to history
+        if (currentConfig.config_value) {
+          const { error: historyError } = await supabase
+            .from("api_key_history")
+            .insert({
+              config_id: id,
+              config_key: currentConfig.config_key,
+              encrypted_value: currentConfig.config_value,
+              provider: currentConfig.provider,
+              rotated_by: user.id,
+              rotation_reason: reason || "Rotação manual",
+              version_number: newVersionNumber
+            });
+
+          if (historyError) {
+            console.error("History insert error:", historyError);
+            throw historyError;
+          }
+        }
+
+        // Update with new encrypted value
+        const encryptedNewValue = encrypt(new_value);
+        const { data: updated, error: updateError } = await supabase
+          .from("api_configurations")
+          .update({
+            config_value: encryptedNewValue,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        console.log(`API key rotated: ${currentConfig.config_key}, version: ${newVersionNumber}`);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            data: { 
+              ...updated, 
+              config_value: maskApiKey(new_value),
+              has_value: true
+            },
+            version: newVersionNumber
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "history": {
+        const { config_id } = data;
+        
+        if (!config_id) {
+          return new Response(
+            JSON.stringify({ error: "config_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const { data: history, error } = await supabase
+          .from("api_key_history")
+          .select("*")
+          .eq("config_id", config_id)
+          .order("version_number", { ascending: false });
+
+        if (error) throw error;
+
+        const maskedHistory = history?.map(h => ({
+          ...h,
+          encrypted_value: maskApiKey(decrypt(h.encrypted_value))
+        }));
+
+        return new Response(
+          JSON.stringify({ success: true, data: maskedHistory }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       case "delete": {
         const { id } = data;
         
@@ -226,8 +327,6 @@ serve(async (req) => {
       }
 
       case "get_decrypted": {
-        // This action is only for internal use by other edge functions
-        // Returns decrypted value for a specific key
         const { config_key } = data;
         
         const { data: config, error } = await supabase
