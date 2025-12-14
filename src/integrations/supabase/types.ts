@@ -94,6 +94,50 @@ export type Database = {
         }
         Relationships: []
       }
+      api_key_history: {
+        Row: {
+          config_id: string | null
+          config_key: string
+          encrypted_value: string
+          id: string
+          provider: string | null
+          rotated_at: string
+          rotated_by: string | null
+          rotation_reason: string | null
+          version_number: number
+        }
+        Insert: {
+          config_id?: string | null
+          config_key: string
+          encrypted_value: string
+          id?: string
+          provider?: string | null
+          rotated_at?: string
+          rotated_by?: string | null
+          rotation_reason?: string | null
+          version_number?: number
+        }
+        Update: {
+          config_id?: string | null
+          config_key?: string
+          encrypted_value?: string
+          id?: string
+          provider?: string | null
+          rotated_at?: string
+          rotated_by?: string | null
+          rotation_reason?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_history_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "api_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_usage_logs: {
         Row: {
           created_at: string

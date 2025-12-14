@@ -14,7 +14,7 @@ import {
   Database, Key, Cpu, Eye, EyeOff, Save, RefreshCw, 
   Zap, Server, Activity, AlertCircle, CheckCircle2, 
   Cloud, Plug, User, BarChart3, Users, TrendingUp, Calendar,
-  Bell, DollarSign, ExternalLink, Globe, Info, Plus, Trash2, Edit, Shield, Lock
+  Bell, DollarSign, ExternalLink, Globe, Info, Plus, Trash2, Edit, Shield, Lock, RotateCcw, History, Clock
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -97,6 +97,18 @@ interface NewApiKey {
   display_name: string;
 }
 
+interface KeyHistory {
+  id: string;
+  config_id: string;
+  config_key: string;
+  encrypted_value: string;
+  provider: string | null;
+  rotated_at: string;
+  rotated_by: string | null;
+  rotation_reason: string | null;
+  version_number: number;
+}
+
 const PROVIDER_OPTIONS = [
   { value: "lovable", label: "Lovable Gateway", icon: Zap, color: "text-primary" },
   { value: "google", label: "Google (Vision/Gemini)", icon: Cpu, color: "text-blue-500" },
@@ -149,6 +161,11 @@ const ApiConfiguration = () => {
     display_name: ""
   });
   const [savingKey, setSavingKey] = useState(false);
+  const [rotatingKey, setRotatingKey] = useState<ApiKeyConfig | null>(null);
+  const [rotationReason, setRotationReason] = useState("");
+  const [newRotationValue, setNewRotationValue] = useState("");
+  const [showHistory, setShowHistory] = useState<string | null>(null);
+  const [keyHistory, setKeyHistory] = useState<KeyHistory[]>([]);
 
   const CHART_COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(217 91% 60%)", "hsl(45 93% 47%)", "hsl(0 84% 60%)"];
 
@@ -495,6 +512,84 @@ const ApiConfiguration = () => {
     } catch (error) {
       console.error("Error deleting API key:", error);
       toast.error("Erro ao remover chave API");
+    }
+  };
+
+  const handleRotateApiKey = async () => {
+    if (!rotatingKey || !newRotationValue) {
+      toast.error("Preencha o novo valor da chave");
+      return;
+    }
+
+    setSavingKey(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ 
+            action: "rotate", 
+            data: { 
+              id: rotatingKey.id, 
+              new_value: newRotationValue,
+              reason: rotationReason || "Rotação manual"
+            }
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success(`Chave rotacionada! Versão: ${result.version}`);
+        await fetchApiKeys();
+        setRotatingKey(null);
+        setNewRotationValue("");
+        setRotationReason("");
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error rotating API key:", error);
+      toast.error("Erro ao rotacionar chave API");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const fetchKeyHistory = async (configId: string) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) throw new Error("Not authenticated");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-api-keys`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({ action: "history", data: { config_id: configId } }),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        setKeyHistory(result.data || []);
+        setShowHistory(configId);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error("Error fetching key history:", error);
+      toast.error("Erro ao carregar histórico");
     }
   };
 
@@ -1172,6 +1267,26 @@ const ApiConfiguration = () => {
                         >
                           {isEditing ? <EyeOff className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
                         </Button>
+
+                        {/* Rotate Button */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Rotacionar Chave"
+                          onClick={() => setRotatingKey(keyConfig)}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+
+                        {/* History Button */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Ver Histórico"
+                          onClick={() => fetchKeyHistory(keyConfig.id)}
+                        >
+                          <History className="w-4 h-4" />
+                        </Button>
                         
                         <Button
                           variant="outline"
@@ -1197,6 +1312,117 @@ const ApiConfiguration = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Rotation Dialog */}
+          <Dialog open={!!rotatingKey} onOpenChange={(open) => !open && setRotatingKey(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <RotateCcw className="w-5 h-5 text-primary" />
+                  Rotacionar Chave de API
+                </DialogTitle>
+                <DialogDescription>
+                  A chave atual será salva no histórico antes da rotação.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium">{rotatingKey?.config_key}</p>
+                  <p className="text-xs text-muted-foreground">Valor atual: {rotatingKey?.config_value}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nova Chave</Label>
+                  <div className="relative">
+                    <Input
+                      type={showSecrets["rotate_key"] ? "text" : "password"}
+                      value={newRotationValue}
+                      onChange={(e) => setNewRotationValue(e.target.value)}
+                      placeholder="Cole a nova chave API aqui..."
+                      className="pr-10 font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3"
+                      onClick={() => toggleShowSecret("rotate_key")}
+                    >
+                      {showSecrets["rotate_key"] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Motivo da Rotação (opcional)</Label>
+                  <Input
+                    value={rotationReason}
+                    onChange={(e) => setRotationReason(e.target.value)}
+                    placeholder="ex: Expiração programada, comprometimento..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRotatingKey(null)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleRotateApiKey} disabled={savingKey} className="gap-2">
+                  {savingKey ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                  Rotacionar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* History Dialog */}
+          <Dialog open={!!showHistory} onOpenChange={(open) => !open && setShowHistory(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary" />
+                  Histórico de Versões
+                </DialogTitle>
+                <DialogDescription>
+                  Histórico de rotações anteriores desta chave de API.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 max-h-96 overflow-y-auto py-4">
+                {keyHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum histórico de rotação</p>
+                    <p className="text-xs mt-1">O histórico será criado após a primeira rotação</p>
+                  </div>
+                ) : (
+                  keyHistory.map((history) => (
+                    <div key={history.id} className="p-4 bg-muted/30 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="gap-1">
+                          <Clock className="w-3 h-3" />
+                          Versão {history.version_number}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(history.rotated_at).toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-background rounded-lg border">
+                        <code className="text-sm font-mono flex-1">{history.encrypted_value}</code>
+                        <Lock className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      {history.rotation_reason && (
+                        <p className="text-xs text-muted-foreground">
+                          Motivo: {history.rotation_reason}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowHistory(null)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Providers Tab */}
