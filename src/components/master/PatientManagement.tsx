@@ -78,12 +78,14 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
   const [confirmPassword, setConfirmPassword] = useState("");
   const [newAccountEmail, setNewAccountEmail] = useState("");
   const [newAccountPassword, setNewAccountPassword] = useState("");
+  const [newAccountRole, setNewAccountRole] = useState<"viewer" | "admin">("viewer");
   
   // Filter states
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [evolutionFilter, setEvolutionFilter] = useState<string>("all");
   const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [criticalityFilter, setCriticalityFilter] = useState<string>("all");
   
   // Form state
   const [formData, setFormData] = useState({
@@ -104,6 +106,11 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
     // Status filter
     if (statusFilter !== "all") {
       result = result.filter(p => p.status === statusFilter);
+    }
+
+    // Criticality filter
+    if (criticalityFilter !== "all") {
+      result = result.filter(p => p.criticality === criticalityFilter);
     }
 
     // Evolution filter
@@ -139,7 +146,7 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
     }
 
     return result;
-  }, [patients, statusFilter, evolutionFilter, periodFilter, searchQuery]);
+  }, [patients, statusFilter, criticalityFilter, evolutionFilter, periodFilter, searchQuery]);
 
   const resetForm = () => {
     setFormData({
@@ -325,17 +332,19 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
         body: { 
           email: newAccountEmail, 
           password: newAccountPassword, 
-          patientId: selectedPatient.id 
+          patientId: selectedPatient.id,
+          role: newAccountRole
         }
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Conta de usuário criada com sucesso!");
+      toast.success(`Conta de ${newAccountRole === "admin" ? "Master" : "Paciente"} criada com sucesso!`);
       setCreateAccountDialogOpen(false);
       setNewAccountEmail("");
       setNewAccountPassword("");
+      setNewAccountRole("viewer");
       setSelectedPatient(null);
       onRefresh();
     } catch (error) {
@@ -350,6 +359,7 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
     setSelectedPatient(patient);
     setNewAccountEmail(patient.email || "");
     setNewAccountPassword("");
+    setNewAccountRole("viewer");
     setCreateAccountDialogOpen(true);
   };
 
@@ -470,6 +480,21 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground whitespace-nowrap">Criticidade:</Label>
+                  <Select value={criticalityFilter} onValueChange={setCriticalityFilter}>
+                    <SelectTrigger className="w-36 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="healthy">🟢 Saudável</SelectItem>
+                      <SelectItem value="normal">🔵 Normal</SelectItem>
+                      <SelectItem value="attention">🟡 Atenção</SelectItem>
+                      <SelectItem value="critical">🔴 Crítico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -477,6 +502,7 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                     setStatusFilter("all");
                     setEvolutionFilter("all");
                     setPeriodFilter("all");
+                    setCriticalityFilter("all");
                   }}
                   className="ml-auto"
                 >
@@ -748,6 +774,30 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                 placeholder="Mínimo 6 caracteres"
                 className="rounded-xl"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountRole">Tipo de Acesso</Label>
+              <Select value={newAccountRole} onValueChange={(value: "viewer" | "admin") => setNewAccountRole(value)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-500">👤</span>
+                      <span>Paciente</span>
+                      <span className="text-xs text-muted-foreground">(apenas visualização própria)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-500">👑</span>
+                      <span>Master</span>
+                      <span className="text-xs text-muted-foreground">(acesso completo)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

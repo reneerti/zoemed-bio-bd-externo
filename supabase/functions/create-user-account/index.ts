@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       throw new Error("Only admins can create user accounts");
     }
 
-    const { email, password, patientId } = await req.json();
+    const { email, password, patientId, role = "viewer" } = await req.json();
 
     if (!email || !password || !patientId) {
       throw new Error("Email, password, and patientId are required");
@@ -54,6 +54,9 @@ Deno.serve(async (req) => {
     if (password.length < 6) {
       throw new Error("Password must be at least 6 characters");
     }
+
+    // Validate role
+    const validRole = role === "admin" ? "admin" : "viewer";
 
     // Create the user account
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -78,10 +81,10 @@ Deno.serve(async (req) => {
       throw new Error("Failed to link user to patient: " + updateError.message);
     }
 
-    // Create viewer role for the new user
+    // Create role for the new user (admin or viewer)
     const { error: roleInsertError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role: "viewer" });
+      .insert({ user_id: newUser.user.id, role: validRole });
 
     if (roleInsertError) {
       console.error("Failed to create role:", roleInsertError);
