@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { 
   Users, Activity, Settings, BarChart3, 
-  ArrowLeft, LogOut, TrendingUp, TrendingDown, RefreshCw
+  ArrowLeft, LogOut, TrendingUp, TrendingDown, RefreshCw, Clock
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -17,6 +19,7 @@ import CustomFieldsConfig from "@/components/master/CustomFieldsConfig";
 import GamificationDashboard from "@/components/master/GamificationDashboard";
 import PdfReportGenerator from "@/components/master/PdfReportGenerator";
 import splashLogo from "@/assets/zoemedbio-splash-logo.png";
+import { BUILD_TIME } from "@/lib/buildInfo";
 
 interface Patient {
   id: string;
@@ -331,6 +334,16 @@ const MasterDashboard = () => {
             <CustomFieldsConfig />
           </TabsContent>
         </Tabs>
+
+        {/* Footer with version */}
+        <footer className="mt-8 pt-4 border-t border-border text-center">
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>
+              Versão do sistema: {format(new Date(BUILD_TIME), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+            </span>
+          </div>
+        </footer>
       </main>
     </div>
   );
