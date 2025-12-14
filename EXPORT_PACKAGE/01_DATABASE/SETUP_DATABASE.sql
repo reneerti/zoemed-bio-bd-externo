@@ -1,0 +1,3 @@
+-- CÓPIA DO ARQUIVO /SETUP_DATABASE.sql
+-- Veja o arquivo original na raiz do projeto
+-- Este é um placeholder para organização do pacote
