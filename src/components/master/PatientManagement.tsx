@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { 
   Search, Edit, Trash2, Eye, TrendingUp, TrendingDown,
-  UserPlus, MoreVertical, Key, Power, PowerOff, Filter, UserCheck, Calendar
+  UserPlus, MoreVertical, Key, Power, PowerOff, Filter, UserCheck, Calendar, Shield, User
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -72,6 +72,7 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [createAccountDialogOpen, setCreateAccountDialogOpen] = useState(false);
+  const [changeRoleDialogOpen, setChangeRoleDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -79,6 +80,8 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
   const [newAccountEmail, setNewAccountEmail] = useState("");
   const [newAccountPassword, setNewAccountPassword] = useState("");
   const [newAccountRole, setNewAccountRole] = useState<"viewer" | "admin">("viewer");
+  const [selectedUserRole, setSelectedUserRole] = useState<"viewer" | "admin">("viewer");
+  const [currentUserRole, setCurrentUserRole] = useState<"viewer" | "admin" | null>(null);
   
   // Filter states
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -363,6 +366,58 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
     setCreateAccountDialogOpen(true);
   };
 
+  const openChangeRoleDialog = async (patient: Patient) => {
+    if (!patient.user_id) return;
+    
+    setSelectedPatient(patient);
+    setIsLoading(true);
+    
+    try {
+      // Fetch current role
+      const { data: roleData, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", patient.user_id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      const role = (roleData?.role as "viewer" | "admin") || "viewer";
+      setCurrentUserRole(role);
+      setSelectedUserRole(role);
+      setChangeRoleDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      toast.error("Erro ao carregar papel do usuário");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChangeRole = async () => {
+    if (!selectedPatient?.user_id) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-user-role", {
+        body: { userId: selectedPatient.user_id, newRole: selectedUserRole }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Papel alterado para ${selectedUserRole === "admin" ? "Master" : "Paciente"} com sucesso!`);
+      setChangeRoleDialogOpen(false);
+      setSelectedPatient(null);
+      onRefresh();
+    } catch (error) {
+      console.error("Error changing role:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao alterar papel");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const openPasswordDialog = (patient: Patient) => {
     setSelectedPatient(patient);
     setNewPassword("");
@@ -613,10 +668,16 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
                         Editar
                       </DropdownMenuItem>
                       {patient.user_id ? (
-                        <DropdownMenuItem onClick={() => openPasswordDialog(patient)}>
-                          <Key className="w-4 h-4 mr-2" />
-                          Alterar Senha
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem onClick={() => openPasswordDialog(patient)}>
+                            <Key className="w-4 h-4 mr-2" />
+                            Alterar Senha
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openChangeRoleDialog(patient)}>
+                            <Shield className="w-4 h-4 mr-2" />
+                            Alterar Papel
+                          </DropdownMenuItem>
+                        </>
                       ) : (
                         <DropdownMenuItem onClick={() => openCreateAccountDialog(patient)}>
                           <UserPlus className="w-4 h-4 mr-2" />
@@ -810,6 +871,62 @@ const PatientManagement = ({ patients, searchQuery, setSearchQuery, onRefresh }:
               className="gradient-primary"
             >
               {isLoading ? "Criando..." : "Criar Conta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Role Dialog */}
+      <Dialog open={changeRoleDialogOpen} onOpenChange={setChangeRoleDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Papel do Usuário</DialogTitle>
+            <DialogDescription>
+              Alterar o tipo de acesso de {selectedPatient?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
+              <span className="text-sm text-muted-foreground">Papel atual:</span>
+              <Badge variant={currentUserRole === "admin" ? "default" : "secondary"}>
+                {currentUserRole === "admin" ? "👑 Master" : "👤 Paciente"}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newRole">Novo Papel</Label>
+              <Select value={selectedUserRole} onValueChange={(value: "viewer" | "admin") => setSelectedUserRole(value)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-blue-500" />
+                      <span>Paciente</span>
+                      <span className="text-xs text-muted-foreground">(apenas visualização própria)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-purple-500" />
+                      <span>Master</span>
+                      <span className="text-xs text-muted-foreground">(acesso completo)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChangeRoleDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleChangeRole} 
+              disabled={isLoading || selectedUserRole === currentUserRole}
+              className="gradient-primary"
+            >
+              {isLoading ? "Alterando..." : "Alterar Papel"}
             </Button>
           </DialogFooter>
         </DialogContent>
